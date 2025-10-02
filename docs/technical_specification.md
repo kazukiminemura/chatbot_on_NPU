@@ -168,8 +168,8 @@ compile_config = {
 - Windows 10/11
 - Python 3.9以上
 - Intel NPU対応デバイス
-- 6GB以上のRAM
-- 8GB以上の空きストレージ
+- 16GB以上のRAM（推奨）
+- 15GB以上の空きストレージ
 
 ### 4.2 インストール手順
 1. リポジトリクローン
@@ -182,10 +182,10 @@ compile_config = {
 ```json
 {
   "model": {
-    "name": "Gemma-3-1B-it",
-    "repo_id": "unsloth/gemma-3-1b-it",
-    "model_type": "gemma3",
-    "max_context_length": 8192
+    "name": "Llama2-7B",
+    "repo_id": "meta-llama/Llama-2-7b-chat-hf",
+    "model_type": "llama",
+    "max_context_length": 4096
   },
   "inference": {
     "max_tokens": 500,

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Llama2-7B NPU Chatbot</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>🤖 Llama2-7B NPU Chatbot</h1>
+            <div class="status-indicator">
+                <span id="status-dot" class="status-dot disconnected"></span>
+                <span id="status-text">接続中...</span>
+            </div>
+        </header>
+
+        <div class="main-content">
+            <div class="chat-container">
+                <div class="chat-messages" id="chatMessages">
+                    <div class="message bot-message">
+                        <div class="message-content">
+                            こんにちは！Llama2-7Bを使ったNPUチャットボットです。何でもお聞きください。
+                        </div>
+                        <div class="message-time">システム</div>
+                    </div>
+                </div>
+
+                <div class="chat-input-container">
+                    <div class="input-group">
+                        <textarea 
+                            id="messageInput" 
+                            placeholder="メッセージを入力してください..." 
+                            rows="1"
+                            maxlength="2000"
+                        ></textarea>
+                        <button id="sendButton" type="button">
+                            <span class="send-icon">📤</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar">
+                <div class="model-info">
+                    <h3>モデル情報</h3>
+                    <div class="info-item">
+                        <span class="label">モデル:</span>
+                        <span id="modelName">Llama2-7B</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="label">状態:</span>
+                        <span id="modelStatus">読み込み中...</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="label">デバイス:</span>
+                        <span id="deviceType">NPU</span>
+                    </div>
+                </div>
+
+                <div class="settings-panel">
+                    <h3>生成設定</h3>
+                    
+                    <div class="setting-group">
+                        <label for="maxTokens">最大トークン数:</label>
+                        <input type="range" id="maxTokens" min="50" max="1000" value="500">
+                        <span class="setting-value" id="maxTokensValue">500</span>
+                    </div>
+
+                    <div class="setting-group">
+                        <label for="temperature">温度:</label>
+                        <input type="range" id="temperature" min="0.1" max="2.0" step="0.1" value="0.7">
+                        <span class="setting-value" id="temperatureValue">0.7</span>
+                    </div>
+
+                    <div class="setting-group">
+                        <label for="topP">Top-p:</label>
+                        <input type="range" id="topP" min="0.1" max="1.0" step="0.05" value="0.9">
+                        <span class="setting-value" id="topPValue">0.9</span>
+                    </div>
+
+                    <div class="setting-group">
+                        <label for="topK">Top-k:</label>
+                        <input type="range" id="topK" min="1" max="100" value="50">
+                        <span class="setting-value" id="topKValue">50</span>
+                    </div>
+                </div>
+
+                <div class="performance-info">
+                    <h3>パフォーマンス</h3>
+                    <div class="info-item">
+                        <span class="label">応答時間:</span>
+                        <span id="responseTime">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="label">生成速度:</span>
+                        <span id="tokensPerSecond">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="label">トークン数:</span>
+                        <span id="tokenCount">-</span>
+                    </div>
+                </div>
+
+                <div class="actions">
+                    <button id="clearChat" class="action-button">
+                        🗑️ チャットをクリア
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/chat.js"></script>
+</body>
+</html>
