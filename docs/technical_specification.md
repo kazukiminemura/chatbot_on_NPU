@@ -19,9 +19,9 @@ chatbot_on_NPU/
 │   │   ├── __init__.py
 │   │   ├── config.py        # 設定管理
 │   │   └── logger.py        # ログ設定
-│   └── utils/
+│   ├── utils/
 │       ├── __init__.py
-│       ├── model_converter.py # GGUF→OpenVINO変換
+│       ├── model_converter.py # HuggingFace→OpenVINO変換
 │       └── download.py       # モデルダウンロード
 ├── static/
 │   ├── css/
@@ -50,7 +50,7 @@ chatbot_on_NPU/
 
 #### モデル管理 (model_manager.py)
 - モデルダウンロード管理
-- GGUF→OpenVINO変換処理
+- HuggingFace→OpenVINO変換処理
 - NPUデバイス検出・設定
 - モデルキャッシュ管理
 
@@ -168,8 +168,8 @@ compile_config = {
 - Windows 10/11
 - Python 3.9以上
 - Intel NPU対応デバイス
-- 8GB以上のRAM
-- 10GB以上の空きストレージ
+- 6GB以上のRAM
+- 8GB以上の空きストレージ
 
 ### 4.2 インストール手順
 1. リポジトリクローン
@@ -182,10 +182,10 @@ compile_config = {
 ```json
 {
   "model": {
-    "name": "Qwen2.5-1.5B-Instruct-GGUF",
-    "repo_id": "Qwen/Qwen2.5-1.5B-Instruct-GGUF",
-    "filename": "qwen2.5-1.5b-instruct-q4_k_m.gguf",
-    "max_context_length": 2048
+    "name": "Gemma-3-1B-it",
+    "repo_id": "unsloth/gemma-3-1b-it",
+    "model_type": "gemma3",
+    "max_context_length": 8192
   },
   "inference": {
     "max_tokens": 500,

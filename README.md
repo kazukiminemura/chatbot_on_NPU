@@ -1,11 +1,11 @@
-# Qwen2.5-1.5B NPU チャットボット
+# Gemma-3-1B-it NPU チャットボット
 
 > **AI駆動開発サンプルプロジェクト**  
 > このリポジトリは、AI技術を活用した開発プロセスの実例を示すサンプルプロジェクトです。
 
 ## 🤖 プロジェクト概要
 
-Qwen2.5-1.5B-Instruct-GGUFモデルをOpenVINOを使用してIntel NPU上で実行し、ブラウザから利用可能な個人用チャットボットアプリケーションを構築するプロジェクトです。
+Gemma-3-1B-itモデルをOpenVINOを使用してIntel NPU上で実行し、ブラウザから利用可能な個人用チャットボットアプリケーションを構築するプロジェクトです。
 
 ### ✨ 主な特徴
 
@@ -13,7 +13,7 @@ Qwen2.5-1.5B-Instruct-GGUFモデルをOpenVINOを使用してIntel NPU上で実�
 - **🌐 ブラウザベース**: Webインターフェースによる直感的な操作
 - **🔒 完全ローカル**: プライバシーを重視した完全ローカル実行
 - **⚡ リアルタイム**: WebSocketによるストリーミング応答
-- **🎯 軽量**: 1.5Bパラメータモデルによる効率的なリソース使用
+- **🎯 軽量**: 1Bパラメータモデルによる効率的なリソース使用
 
 ## 🏗️ AI駆動開発について
 
@@ -81,7 +81,7 @@ python run.py
 - **AI Framework**: OpenVINO Runtime
 - **Backend**: FastAPI
 - **Frontend**: HTML5/CSS3/JavaScript
-- **Model**: Qwen2.5-1.5B-Instruct-GGUF
+- **Model**: Gemma-3-1B-it
 - **Hardware**: Intel NPU
 - **Communication**: WebSocket + REST API
 
