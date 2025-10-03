@@ -5,13 +5,16 @@ from typing import AsyncGenerator, Optional, Dict, Any
 import numpy as np
 from pathlib import Path
 
+# Try to import OpenVINO components, fall back gracefully if not available
+OPENVINO_AVAILABLE = False
 try:
     import openvino as ov
     from optimum.intel.openvino import OVModelForCausalLM
     from transformers import AutoTokenizer, TextStreamer
     OPENVINO_AVAILABLE = True
-except ImportError:
-    OPENVINO_AVAILABLE = False
+except ImportError as e:
+    print(f"Warning: OpenVINO not available - {e}")
+    print("Running in simulation mode. Install OpenVINO for actual inference.")
 
 from ..core import config_manager, logger
 
@@ -30,8 +33,12 @@ class OpenVINOInferenceEngine:
     async def initialize(self) -> bool:
         """Initialize the OpenVINO inference engine."""
         if not OPENVINO_AVAILABLE:
-            logger.error("OpenVINO is not available. Please install openvino and optimum-intel.")
-            return False
+            logger.warning("OpenVINO is not available. Running in simulation mode.")
+            logger.info("To use actual model inference, install OpenVINO:")
+            logger.info("pip install openvino optimum-intel transformers")
+            # Simulate successful initialization for testing
+            self.is_loaded = True
+            return True
             
         try:
             logger.info("Initializing OpenVINO inference engine...")
@@ -73,19 +80,49 @@ class OpenVINOInferenceEngine:
             if self.tokenizer.pad_token is None:
                 self.tokenizer.pad_token = self.tokenizer.eos_token
             
-            # Load OpenVINO model
+            # Load OpenVINO model with proper configuration for dynamic shapes
             device = self.config.hardware.device
-            compile_config = self.config.openvino.compile_config if device == "NPU" else {}
+            compile_config = self.config.openvino.compile_config.copy() if device == "NPU" else {}
             
-            self.model = OVModelForCausalLM.from_pretrained(
-                self.config.model.repo_id,
-                device=device,
-                ov_config=compile_config,
-                trust_remote_code=True,
-                export=False  # Model is already in OpenVINO format
-            )
+            # Add configuration to handle dynamic shapes
+            compile_config.update({
+                "DYNAMIC_SHAPES": "YES",
+                "PERFORMANCE_HINT": "LATENCY",
+                "CACHE_MODE": "OPTIMIZE_SPEED"
+            })
             
-            logger.info(f"Model loaded successfully on {device}")
+            # Try to load the model with error handling for dynamic shapes
+            try:
+                self.model = OVModelForCausalLM.from_pretrained(
+                    self.config.model.repo_id,
+                    device=device,
+                    ov_config=compile_config,
+                    trust_remote_code=True,
+                    export=False,  # Model is already in OpenVINO format
+                    use_cache=True
+                )
+                logger.info(f"Model loaded successfully on {device}")
+                
+            except Exception as model_error:
+                logger.warning(f"Failed to load on {device}: {model_error}")
+                logger.info("Trying to load on CPU as fallback...")
+                
+                # Fallback to CPU with simpler configuration
+                cpu_config = {
+                    "PERFORMANCE_HINT": "LATENCY",
+                    "INFERENCE_NUM_THREADS": "4"
+                }
+                
+                self.model = OVModelForCausalLM.from_pretrained(
+                    self.config.model.repo_id,
+                    device="CPU",
+                    ov_config=cpu_config,
+                    trust_remote_code=True,
+                    export=False,
+                    use_cache=True
+                )
+                logger.info("Model loaded successfully on CPU (fallback)")
+                self.config.hardware.device = "CPU"
             
         except Exception as e:
             logger.error(f"Failed to load model: {e}")
@@ -103,6 +140,12 @@ class OpenVINOInferenceEngine:
         """Generate streaming response from the model."""
         if not self.is_loaded:
             raise RuntimeError("Model not loaded. Call initialize() first.")
+        
+        # If OpenVINO is not available, run simulation
+        if not OPENVINO_AVAILABLE:
+            async for token in self._simulate_generation(prompt, max_tokens):
+                yield token
+            return
         
         try:
             # Use config defaults if parameters not provided
@@ -139,45 +182,28 @@ class OpenVINOInferenceEngine:
             start_time = time.time()
             generated_tokens = 0
             
-            # Use model generate method with streaming
-            with self.model.model.request() as request:
-                # Set input
-                input_ids = inputs["input_ids"]
-                request.set_tensor("input_ids", input_ids.numpy())
-                
-                # Start inference
-                request.start_async()
-                request.wait()
-                
-                # Get initial output
-                output = request.get_output_tensor()
-                output_ids = output.data
-                
-                # Simple generation loop (this is a simplified version)
-                # In practice, you'd implement proper streaming with the OpenVINO model
-                generated_ids = self.model.generate(
-                    **inputs,
-                    **generation_kwargs,
-                    streamer=None  # We'll implement custom streaming below
-                )
-                
-                # Decode and yield tokens
-                new_tokens = generated_ids[0][inputs["input_ids"].shape[1]:]
-                
-                current_text = ""
-                for i, token_id in enumerate(new_tokens):
-                    token_text = self.tokenizer.decode([token_id], skip_special_tokens=True)
-                    if token_text:
-                        current_text += token_text
-                        generated_tokens += 1
-                        yield token_text
-                        
-                        # Add small delay to simulate streaming
-                        await asyncio.sleep(0.01)
-                        
-                        # Check for stop conditions
-                        if token_id == self.tokenizer.eos_token_id:
-                            break
+            # Simple generation approach that works with OpenVINO models
+            generated_ids = self.model.generate(
+                **inputs,
+                **generation_kwargs
+            )
+            
+            # Decode and yield tokens
+            new_tokens = generated_ids[0][inputs["input_ids"].shape[1]:]
+            
+            # Stream the tokens one by one
+            for i, token_id in enumerate(new_tokens):
+                token_text = self.tokenizer.decode([token_id], skip_special_tokens=True)
+                if token_text:
+                    generated_tokens += 1
+                    yield token_text
+                    
+                    # Add small delay to simulate streaming
+                    await asyncio.sleep(0.01)
+                    
+                    # Check for stop conditions
+                    if token_id == self.tokenizer.eos_token_id:
+                        break
             
             # Log performance metrics
             total_time = time.time() - start_time
@@ -187,6 +213,25 @@ class OpenVINOInferenceEngine:
         except Exception as e:
             logger.error(f"Error during generation: {e}")
             yield f"Error: {str(e)}"
+    
+    async def _simulate_generation(self, prompt: str, max_tokens: Optional[int] = None) -> AsyncGenerator[str, None]:
+        """Simulate text generation when OpenVINO is not available."""
+        max_tokens = max_tokens or 100
+        
+        # Simple simulation response
+        simulation_responses = [
+            "こんにちは！",
+            "申し訳ございませんが、現在シミュレーションモードで動作しています。",
+            "実際のDeepSeek-R1-Distill-Qwen-1.5Bモデルを使用するには、",
+            "OpenVINOとoptimum-intelをインストールしてください。",
+            f"\nあなたの質問: {prompt}",
+            "\n実際のモデルでは、この質問に対してより詳細で正確な回答を提供します。"
+        ]
+        
+        for response in simulation_responses:
+            for word in response.split():
+                yield word + " "
+                await asyncio.sleep(0.1)  # Simulate thinking time
     
     def _format_chat_prompt(self, user_message: str) -> str:
         """Format the user message for the DeepSeek model."""
@@ -228,12 +273,19 @@ class OpenVINOInferenceEngine:
         if not self.is_loaded:
             return {"loaded": False}
         
-        return {
+        base_info = {
             "loaded": True,
             "model_name": self.config.model.name,
             "model_type": self.config.model.model_type,
             "device": self.config.hardware.device,
             "precision": self.config.model.precision,
             "max_context_length": self.config.model.max_context_length,
-            "vocab_size": len(self.tokenizer) if self.tokenizer else 0
         }
+        
+        if OPENVINO_AVAILABLE and self.tokenizer:
+            base_info["vocab_size"] = len(self.tokenizer)
+        else:
+            base_info["vocab_size"] = "N/A (Simulation Mode)"
+            base_info["simulation_mode"] = True
+        
+        return base_info

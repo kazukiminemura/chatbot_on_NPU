@@ -56,7 +56,8 @@ class ConfigManager:
     
     def _get_default_config_path(self) -> str:
         """Get the default configuration file path."""
-        return os.path.join(os.path.dirname(os.path.dirname(__file__)), "config.json")
+        # Go up two levels from app/core to reach the project root
+        return os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "config.json")
     
     def load_config(self) -> AppConfig:
         """Load configuration from file."""

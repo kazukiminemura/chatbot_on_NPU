@@ -3,14 +3,27 @@ import logging
 import logging.handlers
 import os
 from datetime import datetime
-from pythonjsonlogger import jsonlogger
-from .config import config_manager
+
+try:
+    from pythonjsonlogger import jsonlogger
+    JSON_LOGGER_AVAILABLE = True
+except ImportError:
+    JSON_LOGGER_AVAILABLE = False
 
 
-def setup_logging():
+def setup_logging(config=None):
     """Setup logging configuration."""
-    config = config_manager.config
-    logs_dir = config_manager.get_logs_path()
+    # Default configuration if none provided
+    if config is None:
+        log_level = "INFO"
+        logs_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "logs")
+    else:
+        log_level = config.server.log_level
+        from .config import config_manager
+        logs_dir = config_manager.get_logs_path()
+    
+    # Create logs directory if it doesn't exist
+    os.makedirs(logs_dir, exist_ok=True)
     
     # Create log filename with timestamp
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -18,7 +31,7 @@ def setup_logging():
     
     # Setup root logger
     root_logger = logging.getLogger()
-    root_logger.setLevel(getattr(logging, config.server.log_level.upper()))
+    root_logger.setLevel(getattr(logging, log_level.upper()))
     
     # Clear existing handlers
     root_logger.handlers.clear()
@@ -35,9 +48,16 @@ def setup_logging():
     file_handler = logging.handlers.RotatingFileHandler(
         log_file, maxBytes=10*1024*1024, backupCount=5, encoding='utf-8'
     )
-    json_formatter = jsonlogger.JsonFormatter(
-        '%(asctime)s %(name)s %(levelname)s %(message)s'
-    )
+    
+    if JSON_LOGGER_AVAILABLE:
+        json_formatter = jsonlogger.JsonFormatter(
+            '%(asctime)s %(name)s %(levelname)s %(message)s'
+        )
+    else:
+        json_formatter = logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        )
+    
     file_handler.setFormatter(json_formatter)
     root_logger.addHandler(file_handler)
     
@@ -49,5 +69,5 @@ def setup_logging():
     return root_logger
 
 
-# Create logger instance
+# Create default logger instance
 logger = setup_logging()

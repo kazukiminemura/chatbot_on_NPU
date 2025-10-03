@@ -6,10 +6,18 @@ from fastapi import FastAPI, WebSocket
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 import os
+import sys
 
-from .core import config_manager, logger
-from .models import model_manager
-from .api import chat_router, handle_websocket_chat
+# Add error handling for imports
+try:
+    from .core import config_manager, logger
+    from .models import model_manager
+    from .api import chat_router, handle_websocket_chat
+except ImportError as e:
+    print(f"Import error: {e}")
+    print("Make sure all dependencies are installed:")
+    print("pip install -r requirements.txt")
+    sys.exit(1)
 
 
 @asynccontextmanager
