@@ -70,13 +70,23 @@ def check_model_exists(model_path: str) -> bool:
     if not path.exists():
         return False
     
-    # Check for essential OpenVINO model files
-    required_files = [
+    # Check for essential OpenVINO model files (both formats)
+    openvino_files = [
         "openvino_model.xml",
         "openvino_model.bin"
     ]
     
-    for file_name in required_files:
+    # Check for any XML/BIN combo (OpenVINO GenAI models may have different names)
+    xml_files = list(path.glob("*.xml"))
+    bin_files = list(path.glob("*.bin"))
+    
+    # If we have XML and BIN files, consider it valid
+    if xml_files and bin_files:
+        logger.info(f"Found OpenVINO model files: {len(xml_files)} XML, {len(bin_files)} BIN")
+        return True
+    
+    # Check for specific OpenVINO files
+    for file_name in openvino_files:
         if not (path / file_name).exists():
             logger.warning(f"Required file not found: {file_name}")
             return False

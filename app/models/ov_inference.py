@@ -1,194 +1,212 @@
-"""OpenVINO inference engine for DeepSeek-R1-Distill-Qwen-1.5B model."""
+"""OpenVINO GenAI inference engine for DeepSeek-R1-Distill-Qwen-1.5B model."""
 import time
 import asyncio
 from typing import AsyncGenerator, Optional, Dict, Any
 import numpy as np
 from pathlib import Path
 
-# Try to import OpenVINO components, fall back gracefully if not available
-OPENVINO_AVAILABLE = False
+# Try to import OpenVINO GenAI components, fall back gracefully if not available
+OPENVINO_GENAI_AVAILABLE = False
 try:
-    import openvino as ov
-    from optimum.intel.openvino import OVModelForCausalLM
-    from transformers import AutoTokenizer, TextStreamer
-    import torch
-    OPENVINO_AVAILABLE = True
+    import openvino_genai as ov_genai
+    OPENVINO_GENAI_AVAILABLE = True
 except ImportError as e:
-    print(f"Warning: OpenVINO not available - {e}")
-    print("Running in simulation mode. Install OpenVINO for actual inference.")
+    print(f"Warning: OpenVINO GenAI not available - {e}")
+    print("Running in simulation mode. Install OpenVINO GenAI for actual inference.")
+    print("pip install openvino-genai")
 
 from ..core import config_manager, logger
+from ..utils.download import download_model, check_model_exists
 
 
 class OpenVINOInferenceEngine:
-    """OpenVINO inference engine for DeepSeek model."""
+    """OpenVINO GenAI inference engine for DeepSeek model."""
     
     def __init__(self):
-        self.model: Optional[OVModelForCausalLM] = None
-        self.tokenizer: Optional[AutoTokenizer] = None
-        self.core: Optional[ov.Core] = None
+        self.llm_pipe: Optional[ov_genai.LLMPipeline] = None
         self.config = config_manager.config
         self.model_path = config_manager.get_model_path()
         self.is_loaded = False
+        self.device = "CPU"  # Default device
         
     async def initialize(self) -> bool:
-        """Initialize the OpenVINO inference engine."""
-        if not OPENVINO_AVAILABLE:
-            logger.warning("OpenVINO is not available. Running in simulation mode.")
-            logger.info("To use actual model inference, install OpenVINO:")
-            logger.info("pip install openvino optimum-intel transformers")
+        """Initialize the OpenVINO GenAI inference engine."""
+        if not OPENVINO_GENAI_AVAILABLE:
+            logger.warning("OpenVINO GenAI is not available. Running in simulation mode.")
+            logger.info("To use actual model inference, install OpenVINO GenAI:")
+            logger.info("pip install openvino-genai")
             # Simulate successful initialization for testing
             self.is_loaded = True
             return True
             
         try:
-            logger.info("Initializing OpenVINO inference engine...")
+            logger.info("Initializing OpenVINO GenAI inference engine...")
             
-            # Initialize OpenVINO core
-            self.core = ov.Core()
+            # Determine device to use
+            self.device = self.config.hardware.device
+            logger.info(f"Target device: {self.device}")
             
-            # Check NPU availability
-            available_devices = self.core.available_devices
-            logger.info(f"Available devices: {available_devices}")
-            
-            if "NPU" not in available_devices:
-                logger.warning("NPU device not available. Falling back to CPU.")
-                self.config.hardware.device = "CPU"
-            
-            # Load model and tokenizer
+            # Load model using OpenVINO GenAI
             await self._load_model()
             
             self.is_loaded = True
-            logger.info("OpenVINO inference engine initialized successfully")
+            logger.info("OpenVINO GenAI inference engine initialized successfully")
             return True
             
         except Exception as e:
-            logger.error(f"Failed to initialize OpenVINO inference engine: {e}")
+            logger.error(f"Failed to initialize OpenVINO GenAI inference engine: {e}")
             return False
     
     async def _load_model(self):
-        """Load the DeepSeek model and tokenizer."""
+        """Load the DeepSeek model using OpenVINO GenAI."""
         try:
             logger.info(f"Loading model from {self.config.model.repo_id}")
             
-            # Load tokenizer
-            self.tokenizer = AutoTokenizer.from_pretrained(
-                self.config.model.repo_id,
-                trust_remote_code=True
-            )
+            # Prepare model path and check if it exists locally
+            model_repo = self.config.model.repo_id
+            local_model_path = Path("./models") / model_repo.replace("/", "_")
             
-            # Set padding token if not exists
-            if self.tokenizer.pad_token is None:
-                self.tokenizer.pad_token = self.tokenizer.eos_token
+            logger.info(f"Checking local model path: {local_model_path}")
             
-            # Load OpenVINO model with static shape configuration
-            device = self.config.hardware.device
-            compile_config = {}
-            
-            if device == "NPU":
-                # NPU specific configuration with static shapes
-                compile_config = {
-                    "NPU_USE_NPUW": "YES",
-                    "NPU_COMPILATION_MODE_PARAMS": "compute-layers-with-higher-precision=Softmax,Add",
-                    "INFERENCE_PRECISION_HINT": "f16",
-                    "PERFORMANCE_HINT": "LATENCY",
-                    "CACHE_MODE": "OPTIMIZE_SPEED",
-                    # Force static shapes for NPU
-                    "DYNAMIC_SHAPES": "NO",
-                    "RESHAPE_ON_BATCH_DIM": "NO"
-                }
+            # Check if model exists locally, if not download it
+            if not self._check_local_model(local_model_path):
+                logger.info("Model not found locally. Starting download...")
+                await self._download_model_if_needed(model_repo, local_model_path)
             else:
-                # CPU/GPU configuration
-                compile_config = {
-                    "PERFORMANCE_HINT": "LATENCY",
-                    "INFERENCE_NUM_THREADS": "4" if device == "CPU" else "AUTO",
-                    "DYNAMIC_SHAPES": "NO"
-                }
+                logger.info("Model found locally. Using cached version.")
             
-            # Try to load the model with static shape configuration
+            # Use local path if it exists, otherwise use repo_id for direct download
+            model_path_to_use = str(local_model_path) if local_model_path.exists() else model_repo
+            logger.info(f"Using model path: {model_path_to_use}")
+            
+            # Create generation config
+            generation_config = ov_genai.GenerationConfig()
+            generation_config.max_new_tokens = self.config.inference.max_tokens
+            generation_config.temperature = self.config.inference.temperature
+            generation_config.top_p = self.config.inference.top_p
+            generation_config.top_k = self.config.inference.top_k
+            generation_config.repetition_penalty = self.config.inference.repetition_penalty
+            generation_config.do_sample = self.config.inference.do_sample
+            
+            # Prepare device-specific configuration
+            device_config = {"CACHE_DIR": str(Path("./cache").absolute())}
+            
+            if self.device == "NPU":
+                # NPU-specific configuration
+                device_config.update({
+                    "NPU_USE_NPUW": "YES",
+                    "PERFORMANCE_HINT": "LATENCY",
+                    "CACHE_MODE": "OPTIMIZE_SPEED"
+                })
+                logger.info("Using NPU-specific configuration")
+            elif self.device == "CPU":
+                # CPU-specific configuration
+                device_config.update({
+                    "PERFORMANCE_HINT": "LATENCY",
+                    "INFERENCE_NUM_THREADS": "4"
+                })
+                logger.info("Using CPU-specific configuration")
+            
+            logger.info(f"Device config: {device_config}")
+            
+            # Try to load the model with the specified device
             try:
-                # First, load the model without device compilation
-                model_path = self.config.model.repo_id
-                static_shape = self.config.openvino.static_input_shape
-                batch_size = static_shape["batch_size"]
-                seq_length = static_shape["sequence_length"]
+                logger.info(f"Loading model on {self.device}")
                 
-                # Load model using optimum
-                self.model = OVModelForCausalLM.from_pretrained(
-                    model_path,
-                    device=device,
-                    ov_config=compile_config,
-                    trust_remote_code=True,
-                    export=False,
-                    use_cache=True  # Keep cache enabled as required by the model
+                # Load LLM pipeline with OpenVINO GenAI
+                # Use the correct parameter name: models_path (not model_path)
+                # The first argument is the models_path (positional argument)
+                self.llm_pipe = ov_genai.LLMPipeline(
+                    model_path_to_use,  # models_path as first positional argument
+                    device=self.device,
+                    config=device_config
                 )
                 
-                # Try to reshape the model for static input
-                try:
-                    # Get the model's input info
-                    model_inputs = self.model.model.inputs
-                    logger.info(f"Original model inputs: {[inp.get_partial_shape() for inp in model_inputs]}")
-                    
-                    # Create static shapes dictionary
-                    static_shapes = {}
-                    for inp in model_inputs:
-                        if inp.get_any_name() == "input_ids":
-                            static_shapes[inp] = [batch_size, seq_length]
-                        elif "attention_mask" in inp.get_any_name():
-                            static_shapes[inp] = [batch_size, seq_length]
-                        else:
-                            # Keep other inputs as-is or set reasonable defaults
-                            current_shape = inp.get_partial_shape()
-                            if current_shape.is_dynamic:
-                                static_shapes[inp] = [batch_size] + [1] * (len(current_shape) - 1)
-                    
-                    # Reshape the model with static shapes
-                    if static_shapes:
-                        logger.info(f"Reshaping model with static shapes: {static_shapes}")
-                        self.model.model = self.model.model.reshape(static_shapes)
-                        
-                        # Now compile for the target device
-                        self.model.model = self.core.compile_model(self.model.model, device, compile_config)
-                        logger.info(f"Model successfully reshaped and compiled for {device}")
-                    
-                except Exception as reshape_error:
-                    logger.warning(f"Model reshape failed, using original model: {reshape_error}")
-                
-                logger.info(f"Model loaded successfully on {device} with static shapes")
+                logger.info(f"Model loaded successfully on {self.device}")
                 
             except Exception as model_error:
-                logger.warning(f"Failed to load on {device} with static shapes: {model_error}")
+                logger.warning(f"Failed to load on {self.device}: {model_error}")
+                logger.debug(f"Model error details: {type(model_error).__name__}: {str(model_error)}")
                 
-                if device == "NPU":
+                if self.device == "NPU":
                     logger.info("Trying to load on CPU as fallback...")
                     
-                    # Fallback to CPU with static configuration
-                    cpu_config = {
-                        "PERFORMANCE_HINT": "LATENCY",
-                        "INFERENCE_NUM_THREADS": "4",
-                        "DYNAMIC_SHAPES": "NO"
-                    }
-                    
-                    static_shape = self.config.openvino.static_input_shape
-                    batch_size = static_shape["batch_size"]
-                    seq_length = static_shape["sequence_length"]
-                    
-                    self.model = OVModelForCausalLM.from_pretrained(
-                        self.config.model.repo_id,
-                        device="CPU",
-                        ov_config=cpu_config,
-                        trust_remote_code=True,
-                        export=False,
-                        use_cache=True  # Keep cache enabled
-                    )
-                    logger.info("Model loaded successfully on CPU (fallback) with static shapes")
-                    self.config.hardware.device = "CPU"
+                    try:
+                        # Fallback to CPU
+                        self.device = "CPU"
+                        cpu_config = {"CACHE_DIR": str(Path("./cache").absolute())}
+                        self.llm_pipe = ov_genai.LLMPipeline(
+                            model_path_to_use,  # models_path as first positional argument
+                            device="CPU",
+                            config=cpu_config
+                        )
+                        logger.info("Model loaded successfully on CPU (fallback)")
+                        self.config.hardware.device = "CPU"
+                    except Exception as cpu_error:
+                        logger.error(f"Failed to load on CPU fallback: {cpu_error}")
+                        raise cpu_error
                 else:
                     raise model_error
             
         except Exception as e:
             logger.error(f"Failed to load model: {e}")
             raise
+    
+    def _check_local_model(self, model_path: Path) -> bool:
+        """Check if the model exists locally with required files."""
+        if not model_path.exists():
+            return False
+        
+        # Check for essential OpenVINO GenAI model files
+        required_files = [
+            "openvino_model.xml",
+            "openvino_model.bin",
+            "config.json"
+        ]
+        
+        # Also check for alternative file patterns
+        alternative_patterns = [
+            "*.xml",
+            "*.bin"
+        ]
+        
+        # First check for exact files
+        for file_name in required_files:
+            if (model_path / file_name).exists():
+                logger.debug(f"Found required file: {file_name}")
+                continue
+        
+        # If exact files not found, check for pattern matches
+        xml_files = list(model_path.glob("*.xml"))
+        bin_files = list(model_path.glob("*.bin"))
+        
+        if xml_files and bin_files:
+            logger.info(f"Found OpenVINO model files: {len(xml_files)} XML, {len(bin_files)} BIN")
+            return True
+        
+        logger.warning(f"Model directory exists but missing required files at {model_path}")
+        return False
+    
+    async def _download_model_if_needed(self, repo_id: str, local_path: Path) -> None:
+        """Download the model if it doesn't exist locally."""
+        try:
+            logger.info(f"Downloading model {repo_id} to {local_path}")
+            
+            # Create directory if it doesn't exist
+            local_path.mkdir(parents=True, exist_ok=True)
+            
+            # Download using the download utility
+            downloaded_path = download_model(
+                repo_id=repo_id,
+                local_dir=str(local_path)
+            )
+            
+            logger.info(f"Model downloaded successfully to {downloaded_path}")
+            
+        except Exception as e:
+            logger.error(f"Failed to download model {repo_id}: {e}")
+            logger.info("Will attempt to use direct repo_id for loading")
+            # Don't raise the error, let the main loading try with repo_id directly
     
     async def generate_response(
         self, 
@@ -203,8 +221,8 @@ class OpenVINOInferenceEngine:
         if not self.is_loaded:
             raise RuntimeError("Model not loaded. Call initialize() first.")
         
-        # If OpenVINO is not available, run simulation
-        if not OPENVINO_AVAILABLE:
+        # If OpenVINO GenAI is not available, run simulation
+        if not OPENVINO_GENAI_AVAILABLE:
             async for token in self._simulate_generation(prompt, max_tokens):
                 yield token
             return
@@ -220,67 +238,40 @@ class OpenVINOInferenceEngine:
             # Format prompt for chat
             formatted_prompt = self._format_chat_prompt(prompt)
             
-            # Tokenize input with fixed length for static shapes
-            max_input_length = self.config.openvino.static_input_shape["sequence_length"]
-            inputs = self.tokenizer(
-                formatted_prompt, 
-                return_tensors="pt", 
-                truncation=True,
-                padding="max_length",  # Pad to fixed length
-                max_length=max_input_length
-            )
+            # Create generation config for this request
+            generation_config = ov_genai.GenerationConfig()
+            generation_config.max_new_tokens = max_tokens
+            generation_config.temperature = temperature
+            generation_config.top_p = top_p
+            generation_config.top_k = top_k
+            generation_config.repetition_penalty = repetition_penalty
+            generation_config.do_sample = self.config.inference.do_sample
             
-            # Ensure input tensor has the expected static shape [1, 512]
-            input_ids = inputs["input_ids"]
-            if input_ids.shape[1] != max_input_length:
-                # Pad or truncate to exactly 512 tokens
-                if input_ids.shape[1] > max_input_length:
-                    input_ids = input_ids[:, :max_input_length]
-                else:
-                    if OPENVINO_AVAILABLE:
-                        padding_length = max_input_length - input_ids.shape[1]
-                        padding = torch.full((1, padding_length), self.tokenizer.pad_token_id, dtype=input_ids.dtype)
-                        input_ids = torch.cat([input_ids, padding], dim=1)
-                inputs["input_ids"] = input_ids
-            
-            # Generation parameters
-            generation_kwargs = {
-                "max_new_tokens": max_tokens,
-                "temperature": temperature,
-                "top_p": top_p,
-                "top_k": top_k,
-                "repetition_penalty": repetition_penalty,
-                "do_sample": self.config.inference.do_sample,
-                "pad_token_id": self.tokenizer.eos_token_id,
-                "eos_token_id": self.tokenizer.eos_token_id,
-            }
-            
-            # Generate with streaming
+            # Generate with streaming using OpenVINO GenAI
             start_time = time.time()
             generated_tokens = 0
             
-            # Simple generation approach that works with OpenVINO models
-            generated_ids = self.model.generate(
-                **inputs,
-                **generation_kwargs
-            )
+            # Create a simple callback streamer for token streaming
+            class TokenStreamer:
+                def __init__(self):
+                    self.tokens = []
+                
+                def put(self, token):
+                    self.tokens.append(token)
+                
+                def end(self):
+                    pass
             
-            # Decode and yield tokens
-            new_tokens = generated_ids[0][inputs["input_ids"].shape[1]:]
+            # For now, use non-streaming generation and simulate streaming
+            # This can be improved when proper streaming API is available
+            full_response = self.llm_pipe.generate(formatted_prompt, generation_config)
             
-            # Stream the tokens one by one
-            for i, token_id in enumerate(new_tokens):
-                token_text = self.tokenizer.decode([token_id], skip_special_tokens=True)
-                if token_text:
-                    generated_tokens += 1
-                    yield token_text
-                    
-                    # Add small delay to simulate streaming
-                    await asyncio.sleep(0.01)
-                    
-                    # Check for stop conditions
-                    if token_id == self.tokenizer.eos_token_id:
-                        break
+            # Simulate streaming by yielding words
+            words = full_response.split()
+            for word in words:
+                generated_tokens += 1
+                yield word + " "
+                await asyncio.sleep(0.01)  # Small delay for streaming effect
             
             # Log performance metrics
             total_time = time.time() - start_time
@@ -354,13 +345,19 @@ class OpenVINOInferenceEngine:
             "loaded": True,
             "model_name": self.config.model.name,
             "model_type": self.config.model.model_type,
-            "device": self.config.hardware.device,
+            "device": self.device,
             "precision": self.config.model.precision,
             "max_context_length": self.config.model.max_context_length,
+            "inference_engine": "OpenVINO GenAI"
         }
         
-        if OPENVINO_AVAILABLE and self.tokenizer:
-            base_info["vocab_size"] = len(self.tokenizer)
+        if OPENVINO_GENAI_AVAILABLE and self.llm_pipe:
+            # Try to get additional model info from the pipeline
+            try:
+                # Note: API may vary depending on OpenVINO GenAI version
+                base_info["vocab_size"] = "Available via OpenVINO GenAI"
+            except:
+                base_info["vocab_size"] = "N/A"
         else:
             base_info["vocab_size"] = "N/A (Simulation Mode)"
             base_info["simulation_mode"] = True
