@@ -56,8 +56,8 @@ static_input_shape = {
 ├── logs/                     # ログファイル
 ├── config.json              # 設定ファイル
 ├── requirements.txt         # Python依存関係
-├── setup.py                 # セットアップスクリプト
 ├── run.py                   # アプリケーション起動スクリプト
+├── start_chatbot.bat        # Windows起動バッチファイル
 └── README.md               # セットアップ・使用方法
 ```
 
