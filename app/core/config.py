@@ -37,6 +37,7 @@ class HardwareConfig(BaseModel):
 
 class OpenVINOConfig(BaseModel):
     compile_config: Dict[str, str]
+    static_input_shape: Dict[str, int] = {"batch_size": 1, "sequence_length": 512}
 
 
 class AppConfig(BaseModel):

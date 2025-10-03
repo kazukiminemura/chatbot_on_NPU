@@ -3,8 +3,31 @@
 ## 1. プロジェクト構成
 
 ```
-chatbot_on_NPU/
-├── app/
+chatbot_on_### 5.1 NPU最適化設定
+
+#### OpenVINOコンパイル設定（静的シェイプ対応）
+```python
+compile_config = {
+    "NPU_USE_NPUW": "YES",
+    "NPU_COMPILATION_MODE_PARAMS": "compute-layers-with-higher-precision=Softmax,Add",
+    "INFERENCE_PRECISION_HINT": "f16",
+    "PERFORMANCE_HINT": "LATENCY",
+    "CACHE_MODE": "OPTIMIZE_SPEED",
+    "DYNAMIC_SHAPES": "NO",
+    "RESHAPE_ON_BATCH_DIM": "NO"
+}
+
+# 静的入力シェイプ設定
+static_input_shape = {
+    "batch_size": 1,
+    "sequence_length": 512
+}
+```
+
+#### 静的シェイプによるNPU互換性
+- 動的シェイプエラーを回避するため固定サイズ（1x512）を使用
+- 入力テキストは自動的に512トークンにパディング/トランケート
+- NPUでの安定した推論実行を保証app/
 │   ├── __init__.py
 │   ├── main.py              # FastAPIメインアプリケーション
 │   ├── models/

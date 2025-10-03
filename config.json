@@ -28,7 +28,15 @@
     "compile_config": {
       "NPU_USE_NPUW": "YES",
       "NPU_COMPILATION_MODE_PARAMS": "compute-layers-with-higher-precision=Softmax,Add",
-      "INFERENCE_PRECISION_HINT": "f16"
+      "INFERENCE_PRECISION_HINT": "f16",
+      "PERFORMANCE_HINT": "LATENCY",
+      "CACHE_MODE": "OPTIMIZE_SPEED",
+      "DYNAMIC_SHAPES": "NO",
+      "RESHAPE_ON_BATCH_DIM": "NO"
+    },
+    "static_input_shape": {
+      "batch_size": 1,
+      "sequence_length": 512
     }
   }
 }

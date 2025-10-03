@@ -11,6 +11,7 @@ try:
     import openvino as ov
     from optimum.intel.openvino import OVModelForCausalLM
     from transformers import AutoTokenizer, TextStreamer
+    import torch
     OPENVINO_AVAILABLE = True
 except ImportError as e:
     print(f"Warning: OpenVINO not available - {e}")
@@ -80,49 +81,110 @@ class OpenVINOInferenceEngine:
             if self.tokenizer.pad_token is None:
                 self.tokenizer.pad_token = self.tokenizer.eos_token
             
-            # Load OpenVINO model with proper configuration for dynamic shapes
+            # Load OpenVINO model with static shape configuration
             device = self.config.hardware.device
-            compile_config = self.config.openvino.compile_config.copy() if device == "NPU" else {}
+            compile_config = {}
             
-            # Add configuration to handle dynamic shapes
-            compile_config.update({
-                "DYNAMIC_SHAPES": "YES",
-                "PERFORMANCE_HINT": "LATENCY",
-                "CACHE_MODE": "OPTIMIZE_SPEED"
-            })
+            if device == "NPU":
+                # NPU specific configuration with static shapes
+                compile_config = {
+                    "NPU_USE_NPUW": "YES",
+                    "NPU_COMPILATION_MODE_PARAMS": "compute-layers-with-higher-precision=Softmax,Add",
+                    "INFERENCE_PRECISION_HINT": "f16",
+                    "PERFORMANCE_HINT": "LATENCY",
+                    "CACHE_MODE": "OPTIMIZE_SPEED",
+                    # Force static shapes for NPU
+                    "DYNAMIC_SHAPES": "NO",
+                    "RESHAPE_ON_BATCH_DIM": "NO"
+                }
+            else:
+                # CPU/GPU configuration
+                compile_config = {
+                    "PERFORMANCE_HINT": "LATENCY",
+                    "INFERENCE_NUM_THREADS": "4" if device == "CPU" else "AUTO",
+                    "DYNAMIC_SHAPES": "NO"
+                }
             
-            # Try to load the model with error handling for dynamic shapes
+            # Try to load the model with static shape configuration
             try:
+                # First, load the model without device compilation
+                model_path = self.config.model.repo_id
+                static_shape = self.config.openvino.static_input_shape
+                batch_size = static_shape["batch_size"]
+                seq_length = static_shape["sequence_length"]
+                
+                # Load model using optimum
                 self.model = OVModelForCausalLM.from_pretrained(
-                    self.config.model.repo_id,
+                    model_path,
                     device=device,
                     ov_config=compile_config,
                     trust_remote_code=True,
-                    export=False,  # Model is already in OpenVINO format
-                    use_cache=True
+                    export=False,
+                    use_cache=True  # Keep cache enabled as required by the model
                 )
-                logger.info(f"Model loaded successfully on {device}")
+                
+                # Try to reshape the model for static input
+                try:
+                    # Get the model's input info
+                    model_inputs = self.model.model.inputs
+                    logger.info(f"Original model inputs: {[inp.get_partial_shape() for inp in model_inputs]}")
+                    
+                    # Create static shapes dictionary
+                    static_shapes = {}
+                    for inp in model_inputs:
+                        if inp.get_any_name() == "input_ids":
+                            static_shapes[inp] = [batch_size, seq_length]
+                        elif "attention_mask" in inp.get_any_name():
+                            static_shapes[inp] = [batch_size, seq_length]
+                        else:
+                            # Keep other inputs as-is or set reasonable defaults
+                            current_shape = inp.get_partial_shape()
+                            if current_shape.is_dynamic:
+                                static_shapes[inp] = [batch_size] + [1] * (len(current_shape) - 1)
+                    
+                    # Reshape the model with static shapes
+                    if static_shapes:
+                        logger.info(f"Reshaping model with static shapes: {static_shapes}")
+                        self.model.model = self.model.model.reshape(static_shapes)
+                        
+                        # Now compile for the target device
+                        self.model.model = self.core.compile_model(self.model.model, device, compile_config)
+                        logger.info(f"Model successfully reshaped and compiled for {device}")
+                    
+                except Exception as reshape_error:
+                    logger.warning(f"Model reshape failed, using original model: {reshape_error}")
+                
+                logger.info(f"Model loaded successfully on {device} with static shapes")
                 
             except Exception as model_error:
-                logger.warning(f"Failed to load on {device}: {model_error}")
-                logger.info("Trying to load on CPU as fallback...")
+                logger.warning(f"Failed to load on {device} with static shapes: {model_error}")
                 
-                # Fallback to CPU with simpler configuration
-                cpu_config = {
-                    "PERFORMANCE_HINT": "LATENCY",
-                    "INFERENCE_NUM_THREADS": "4"
-                }
-                
-                self.model = OVModelForCausalLM.from_pretrained(
-                    self.config.model.repo_id,
-                    device="CPU",
-                    ov_config=cpu_config,
-                    trust_remote_code=True,
-                    export=False,
-                    use_cache=True
-                )
-                logger.info("Model loaded successfully on CPU (fallback)")
-                self.config.hardware.device = "CPU"
+                if device == "NPU":
+                    logger.info("Trying to load on CPU as fallback...")
+                    
+                    # Fallback to CPU with static configuration
+                    cpu_config = {
+                        "PERFORMANCE_HINT": "LATENCY",
+                        "INFERENCE_NUM_THREADS": "4",
+                        "DYNAMIC_SHAPES": "NO"
+                    }
+                    
+                    static_shape = self.config.openvino.static_input_shape
+                    batch_size = static_shape["batch_size"]
+                    seq_length = static_shape["sequence_length"]
+                    
+                    self.model = OVModelForCausalLM.from_pretrained(
+                        self.config.model.repo_id,
+                        device="CPU",
+                        ov_config=cpu_config,
+                        trust_remote_code=True,
+                        export=False,
+                        use_cache=True  # Keep cache enabled
+                    )
+                    logger.info("Model loaded successfully on CPU (fallback) with static shapes")
+                    self.config.hardware.device = "CPU"
+                else:
+                    raise model_error
             
         except Exception as e:
             logger.error(f"Failed to load model: {e}")
@@ -158,13 +220,28 @@ class OpenVINOInferenceEngine:
             # Format prompt for chat
             formatted_prompt = self._format_chat_prompt(prompt)
             
-            # Tokenize input
+            # Tokenize input with fixed length for static shapes
+            max_input_length = self.config.openvino.static_input_shape["sequence_length"]
             inputs = self.tokenizer(
                 formatted_prompt, 
                 return_tensors="pt", 
                 truncation=True,
-                max_length=self.config.model.max_context_length - max_tokens
+                padding="max_length",  # Pad to fixed length
+                max_length=max_input_length
             )
+            
+            # Ensure input tensor has the expected static shape [1, 512]
+            input_ids = inputs["input_ids"]
+            if input_ids.shape[1] != max_input_length:
+                # Pad or truncate to exactly 512 tokens
+                if input_ids.shape[1] > max_input_length:
+                    input_ids = input_ids[:, :max_input_length]
+                else:
+                    if OPENVINO_AVAILABLE:
+                        padding_length = max_input_length - input_ids.shape[1]
+                        padding = torch.full((1, padding_length), self.tokenizer.pad_token_id, dtype=input_ids.dtype)
+                        input_ids = torch.cat([input_ids, padding], dim=1)
+                inputs["input_ids"] = input_ids
             
             # Generation parameters
             generation_kwargs = {
