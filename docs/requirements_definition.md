@@ -1,9 +1,9 @@
-# Gemma-3-1B-it NPUチャットボット アプリケーション要件定義書
+# DeepSeek-R1-Distill-Qwen-1.5B NPUチャットボット アプリケーション要件定義書
 
 ## 1. プロジェクト概要
 
 ### 1.1 目的
-- Gemma-3-1B-itモデルをOpenVINOを使用してNPU上で実行
+- DeepSeek-R1-Distill-Qwen-1.5Bモデル（INT4量子化版）をOpenVINOを使用してNPU上で実行
 - ブラウザから利用可能な個人用チャットボットアプリケーションの構築
 - 高速推論とリアルタイム対話の実現
 
@@ -22,8 +22,8 @@
    - ストリーミング応答対応（文字単位での逐次表示）
 
 2. **モデル管理機能**
-   - Gemma-3-1B-itモデルの自動ダウンロード
-   - OpenVINO形式への自動変換
+   - DeepSeek-R1-Distill-Qwen-1.5Bモデルの自動ダウンロード
+   - OpenVINO形式への自動変換（必要に応じて）
    - NPUデバイスへの最適化配置
 
 3. **会話履歴管理**
@@ -116,8 +116,8 @@
 ## 5. データ要件
 
 ### 5.1 モデルデータ
-- **モデルサイズ**: 約2GB (Gemma-3-1B-it)
-- **フォーマット**: HuggingFace → OpenVINO IR変換
+- **モデルサイズ**: 約1GB (DeepSeek-R1-Distill-Qwen-1.5B INT4)
+- **フォーマット**: OpenVINO IR形式
 - **保存場所**: ローカル`models/`ディレクトリ
 
 ### 5.2 設定データ

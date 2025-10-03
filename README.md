@@ -1,11 +1,11 @@
-# Gemma-3-1B-it NPU チャットボット
+# DeepSeek-R1-Distill-Qwen-1.5B NPU チャットボット
 
 > **AI駆動開発サンプルプロジェクト**  
 > このリポジトリは、AI技術を活用した開発プロセスの実例を示すサンプルプロジェクトです。
 
 ## 🤖 プロジェクト概要
 
-Gemma-3-1B-itモデルをOpenVINOを使用してIntel NPU上で実行し、ブラウザから利用可能な個人用チャットボットアプリケーションを構築するプロジェクトです。
+DeepSeek-R1-Distill-Qwen-1.5Bモデル（INT4量子化版）をOpenVINOを使用してIntel NPU上で実行し、ブラウザから利用可能な個人用チャットボットアプリケーションを構築するプロジェクトです。
 
 ### ✨ 主な特徴
 
@@ -57,14 +57,30 @@ chatbot_on_NPU/
 - 8GB以上のRAM
 
 ### インストール
+
+#### 自動セットアップ（推奨）
 ```bash
 # リポジトリのクローン
 git clone https://github.com/kazukiminemura/chatbot_on_NPU.git
 cd chatbot_on_NPU
 
+# Windows: バッチファイルでセットアップ
+setup.bat
+
+# Linux/Mac: スクリプトでセットアップ
+python setup.py
+```
+
+#### 手動セットアップ
+```bash
 # 仮想環境の作成
 python -m venv venv
+
+# Windows
 venv\Scripts\activate
+
+# Linux/Mac
+source venv/bin/activate
 
 # 依存関係のインストール
 pip install -r requirements.txt
@@ -73,17 +89,32 @@ pip install -r requirements.txt
 python run.py
 ```
 
-### アクセス
-ブラウザで `http://localhost:8000` にアクセスしてチャットボットを利用できます。
+### 簡単スタート（Windows）
+```cmd
+# 1. セットアップ実行
+setup.bat
+
+# 2. チャットボット起動
+start_chatbot.bat
+```
 
 ## 🛠️ 技術スタック
 
 - **AI Framework**: OpenVINO Runtime
 - **Backend**: FastAPI
 - **Frontend**: HTML5/CSS3/JavaScript
-- **Model**: Gemma-3-1B-it
+- **Model**: DeepSeek-R1-Distill-Qwen-1.5B (INT4)
 - **Hardware**: Intel NPU
 - **Communication**: WebSocket + REST API
+
+## 🎯 主な特徴（DeepSeek-R1-Distill-Qwen-1.5B版）
+
+- **モデル**: OpenVINO/DeepSeek-R1-Distill-Qwen-1.5B-int4-cw-ov を使用
+- **量子化**: INT4量子化で高速化とメモリ効率化を実現
+- **コンテキスト長**: 32,768トークンの長いコンテキストに対応
+- **推論速度**: INT4量子化による高速推論
+- **メモリ使用量**: 約1GBの軽量モデル
+- **ブラウザアクセス**: http://localhost:8000 でアクセス可能
 
 ## 📊 パフォーマンス目標
 

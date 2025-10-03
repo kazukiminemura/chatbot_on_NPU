@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeepSeek-R1-Distill-Qwen-1.5B NPU Chatbot</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>🤖 DeepSeek-R1-Distill-Qwen-1.5B NPU Chatbot</h1>
+            <div class="status-panel">
+                <div class="status-item">
+                    <span class="status-label">状態:</span>
+                    <span id="status-text" class="status-value">接続中...</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">デバイス:</span>
+                    <span id="device-text" class="status-value">-</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">メモリ:</span>
+                    <span id="memory-text" class="status-value">-</span>
+                </div>
+            </div>
+        </header>
+
+        <main class="chat-container">
+            <div class="chat-messages" id="chat-messages">
+                <div class="message bot-message">
+                    <div class="message-content">
+                        <div class="message-text">
+                            こんにちは！DeepSeek-R1-Distill-Qwen-1.5Bチャットボットです。<br>
+                            何でもお気軽にお聞きください。
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chat-input-container">
+                <div class="settings-panel" id="settings-panel">
+                    <div class="settings-row">
+                        <label for="max-tokens">最大トークン数:</label>
+                        <input type="range" id="max-tokens" min="50" max="1000" value="500">
+                        <span id="max-tokens-value">500</span>
+                    </div>
+                    <div class="settings-row">
+                        <label for="temperature">温度:</label>
+                        <input type="range" id="temperature" min="0" max="200" value="70" step="1">
+                        <span id="temperature-value">0.7</span>
+                    </div>
+                    <div class="settings-row">
+                        <label for="top-p">Top-p:</label>
+                        <input type="range" id="top-p" min="0" max="100" value="90" step="1">
+                        <span id="top-p-value">0.9</span>
+                    </div>
+                </div>
+
+                <div class="input-area">
+                    <button class="settings-toggle" id="settings-toggle" title="設定">⚙️</button>
+                    <textarea 
+                        id="chat-input" 
+                        placeholder="メッセージを入力してください..." 
+                        rows="1"
+                    ></textarea>
+                    <button id="send-button" class="send-button" title="送信">
+                        <span id="send-icon">📤</span>
+                    </button>
+                </div>
+            </div>
+        </main>
+
+        <div class="performance-info" id="performance-info"></div>
+    </div>
+
+    <script src="/static/js/chat.js"></script>
+</body>
+</html>

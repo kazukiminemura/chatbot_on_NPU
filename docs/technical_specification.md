@@ -1,4 +1,4 @@
-# 技術実装仕様書
+# 技術実装仕様書 - DeepSeek-R1-Distill-Qwen-1.5B版
 
 ## 1. プロジェクト構成
 
@@ -49,8 +49,8 @@ chatbot_on_NPU/
 - WebSocketエンドポイント設定
 
 #### モデル管理 (model_manager.py)
-- モデルダウンロード管理
-- HuggingFace→OpenVINO変換処理
+- DeepSeek-R1-Distill-Qwen-1.5Bモデルの管理
+- OpenVINO形式での最適化済みモデル読み込み
 - NPUデバイス検出・設定
 - モデルキャッシュ管理
 
@@ -182,17 +182,19 @@ compile_config = {
 ```json
 {
   "model": {
-    "name": "Gemma-3-1B-it",
-    "repo_id": "unsloth/gemma-3-1b-it",
-    "model_type": "gemma3",
-    "max_context_length": 8192
+    "name": "DeepSeek-R1-Distill-Qwen-1.5B",
+    "repo_id": "OpenVINO/DeepSeek-R1-Distill-Qwen-1.5B-int4-cw-ov",
+    "model_type": "qwen",
+    "max_context_length": 32768,
+    "precision": "INT4"
   },
   "inference": {
-    "max_tokens": 500,
+    "max_tokens": 1000,
     "temperature": 0.7,
     "top_p": 0.9,
     "top_k": 50,
-    "repetition_penalty": 1.1
+    "repetition_penalty": 1.1,
+    "do_sample": true
   },
   "server": {
     "host": "localhost",
@@ -203,6 +205,13 @@ compile_config = {
     "device": "NPU",
     "precision": "FP16",
     "batch_size": 1
+  },
+  "openvino": {
+    "compile_config": {
+      "NPU_USE_NPUW": "YES",
+      "NPU_COMPILATION_MODE_PARAMS": "compute-layers-with-higher-precision=Softmax,Add",
+      "INFERENCE_PRECISION_HINT": "f16"
+    }
   }
 }
 ```
