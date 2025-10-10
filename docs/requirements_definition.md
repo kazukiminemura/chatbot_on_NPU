@@ -1,206 +1,47 @@
-# Chatbot on AI PC アプリケーション要件定義書
+# Chatbot on AI PC Requirements
 
-## 1. プロジェクト概要
+## 1. Goal
+- Provide a local chat app that runs DeepSeek-R1-Distill-Qwen-1.5B-int4-cw-ov through OpenVINO on an Intel AI PC
+- Prefer the NPU, but allow GPU or CPU fallback
+- Offer a safe, minimal browser UI for local use
 
-### 1.1 目的
-- OpenVINO/DeepSeek-R1-Distill-Qwen-1.5B-int4-cw-ovモデルをOpenVINOを使用してAI PC（NPU搭載PC）上で実行
-- ブラウザから利用可能な個人用チャットボットアプリケーションの構築
-- 高速推論とリアルタイム対話の実現
+## 2. Target Users
+- Individuals who want to run an LLM on their own machine
+- Developers or creators evaluating Intel AI PC capabilities
+- People who do not want to send chat data to the cloud
 
-### 1.2 対象ユーザー
-- 個人ユーザー（1人での利用を想定）
-- AI技術に興味があるエンドユーザー
-- ローカル環境でのプライベートなAI対話を求めるユーザー
+## 3. Functional Requirements
+### 3.1 Chat
+- Serve a simple web UI at `http://localhost:8000`
+- Accept text prompts and return the full response after inference (no streaming)
+- Keep the conversation history in the current browser session and allow clearing it
 
-## 2. 機能要件
+### 3.2 Model Management
+- When the OpenVINO model files are missing, guide the user to place them under `models/`
+- Reuse locally cached models to avoid repeated downloads
 
-### 2.1 コア機能
-1. **リアルタイムチャット機能**
-   - ブラウザベースのチャットインターフェース
-   - テキスト入力による質問・指示の送信
-   - AIからのリアルタイム応答表示
-   - ストリーミング応答対応（文字単位での逐次表示）
-   - ローカルホスト上のフロントエンド（`http://localhost:8000/`）でアクセス提供
+### 3.3 Configuration
+- Allow adjusting inference settings (`max_tokens`, `temperature`, etc.) and device selection via `config.json`
+- Optional: accept overrides for host and port through CLI flags or environment variables
 
-2. **モデル管理機能**
-   - OpenVINO/DeepSeek-R1-Distill-Qwen-1.5B-int4-cw-ovモデルの自動ダウンロード
-   - OpenVINO形式への自動変換
-   - NPUデバイスへの最適化配置
-   - 初回のサーバー起動時に`python run.py`がモデルの取得と更新を自動処理
+## 4. Non-functional Requirements
+- Aim for responses within a few seconds per prompt (depends on hardware)
+- Keep memory usage around 8 GB or less on standard hardware
+- Run fully offline without sending any data outside the local machine
 
-3. **会話履歴管理**
-   - セッション内での会話履歴保持
-   - 会話履歴のクリア機能
-   - 過去の会話の参照機能
+## 5. Technical Constraints
+- Backend: Python 3.9-3.12 with FastAPI and Uvicorn
+- Inference stack: OpenVINO Runtime, optimum-intel, transformers
+- Frontend: HTML, CSS, vanilla JavaScript
+- API surface: REST only
 
-### 2.2 ユーザーインターフェース機能
-1. **Webインターフェース**
-   - レスポンシブデザイン（デスクトップ・モバイル対応）
-   - 直感的なチャット画面
-   - 入力エリア（テキストボックス）
-   - 送信ボタン
-   - 会話履歴表示エリア
+## 6. Setup Flow
+1. Clone the repository and create a Python virtual environment
+2. Install dependencies with `pip install -r requirements.txt`
+3. Download the OpenVINO model (e.g., via Hugging Face CLI) and place it in `models/`
+4. Run `python run.py` and open the site in a browser
 
-2. **システム情報表示**
-   - AI PC (NPU) 使用状況の表示
-   - モデル読み込み状態の表示
-   - 応答時間の表示
-   - システムリソース使用状況
-   - フォールバック動作の表示（NPUが存在しない場合の実行モードを明示。優先順位は NPU → GPU → CPU）
-
-### 2.3 設定・カスタマイズ機能
-1. **応答パラメータ調整**
-   - 最大トークン数設定
-   - 温度パラメータ調整
-   - Top-p/Top-k設定
-   - 繰り返しペナルティ設定
-
-2. **システム設定**
-   - AI PC (NPU) デバイス選択
-   - ログレベル設定
-   - キャッシュ設定
-   - 強制CPU実行モードの切替オプション（必要に応じて明示的にCPUで実行できるようにする）
-
-## 3. 非機能要件
-
-### 3.1 性能要件
-- **応答時間**: 平均2秒以内での応答開始
-- **スループット**: 秒間50トークン以上の生成速度
-- **メモリ使用量**: 4GB以下でのモデル実行
-- **AI PC (NPU) 使用率**: 最適化されたNPUリソース活用
-
-### 3.2 可用性要件
-- **稼働時間**: ローカル環境での24時間稼働対応
-- **エラー処理**: 適切なエラーメッセージ表示とリカバリ機能
-- **自動復旧**: モデル読み込み失敗時の自動リトライ
-
-### 3.3 セキュリティ要件
-- **ローカル実行**: 全ての処理をローカル環境で完結
-- **データプライバシー**: 会話データの外部送信なし
-- **アクセス制御**: localhost限定のアクセス
-
-### 3.4 互換性要件
-- **OS**: Windows 10/11 (AI PC対応)
-- **ブラウザ**: Chrome, Firefox, Edge (最新版)
-- **ハードウェア**: Intel AI PC（NPU搭載デバイス）
-
-注: NPU搭載は推奨だが必須ではない。実行時のデバイス選択は以下の優先順位で行う:
-1. NPU（利用可能であれば最優先で使用）
-2. GPU（NPUがない場合は利用可能なGPUを使用）
-3. CPU（GPUが利用できない環境ではCPUで実行）
-
-## 4. 技術要件
-
-### 4.1 技術スタック
-- **Backend**: Python 3.9+
-- **Web Framework**: FastAPI
-- **Frontend**: HTML5, CSS3, JavaScript (Vanilla)
-- **AI Framework**: OpenVINO Runtime
-- **Model Format**: GGUF → OpenVINO IR
-- **WebSocket**: リアルタイム通信用
-
-### 4.2 依存ライブラリ
-- openvino[npu]
-- transformers
-- optimum-intel
-- fastapi
-- uvicorn
-- websockets
-- huggingface-hub
-
-注意: OpenVINOにはNPU向けランタイムに加え、GPU/CPU向けの実行バックエンドが存在する。NPUが無い環境ではGPU（利用可能な場合）かCPUにフォールバックして実行できるよう、ランタイムの初期化時にデバイス検出とフォールバック処理を実装すること。
-
-### 4.3 アーキテクチャ
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Web Browser   │◄──►│   FastAPI       │◄──►│   OpenVINO      │
-│   (Frontend)    │    │   (Backend)     │    │   (AI PC NPU)   │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-                              │
-                              ▼
-                       ┌─────────────────┐
-                       │   Model Store   │
-                       │   (Local Cache) │
-                       └─────────────────┘
-```
-
-実行時のデバイス選定について: システムは起動時にデバイスを検出し、可能であればNPUを使用する。NPUが存在しない場合はGPUを使用し、GPUが利用できない・非対応の場合はCPUで実行するフォールバックロジックを実装すること。
-
-## 5. データ要件
-
-### 5.1 モデルデータ
-- **モデルサイズ**: 約1GB (OpenVINO/DeepSeek-R1-Distill-Qwen-1.5B-int4-cw-ov)
-- **フォーマット**: HuggingFace → OpenVINO IR変換
-- **保存場所**: ローカル`models/`ディレクトリ
-
-### 5.2 設定データ
-- **形式**: JSON形式の設定ファイル
-- **内容**: モデルパラメータ、システム設定
-- **保存場所**: `config.json`
-
-### 5.3 ログデータ
-- **形式**: 構造化ログ（JSON）
-- **内容**: システムログ、エラーログ、パフォーマンスログ
-- **保存場所**: `logs/`ディレクトリ
-
-## 6. ユーザーシナリオ
-
-### 6.1 基本利用フロー
-1. アプリケーション起動
-2. ブラウザで `http://localhost:8000/` にアクセス
-3. モデル読み込み完了を確認
-4. チャット画面で質問を入力
-5. 送信ボタンクリックまたはEnterキー
-6. AIからの応答をリアルタイムで受信
-7. 会話を継続
-
-### 6.2 初回セットアップフロー
-1. 依存関係のインストール
-2. `python run.py` 初回実行でOpenVINO/DeepSeek-R1-Distill-Qwen-1.5B-int4-cw-ovモデルを自動ダウンロード
-3. 同コマンドでOpenVINO形式への自動変換とキャッシュ保存
-4. AI PC (NPU) デバイスの検出・設定
-   - 起動時にNPUが検出されない場合は、利用可能なGPUを確認し、GPUが利用可能ならGPUで実行する。GPUも利用不可の場合はCPUで実行する設定を行う。
-   - 必要に応じて「強制CPUモード」などの設定を用意し、明示的にCPUでの実行を選べるようにする。
-5. サーバー起動
-
-## 7. 制約事項
-
-### 7.1 技術的制約
-- AI PC（NPU搭載ハードウェア）が推奨されるが、NPUなしでも動作するように設計すること
-- OpenVINO NPUランタイムの要求仕様
-- ローカル環境でのリソース制限
-
-### 7.2 機能的制約
-- 単一ユーザーでの利用に限定
-- リアルタイム音声入出力は対象外
-- ファイルアップロード機能は対象外
-
-## 8. 今後の拡張予定
-
-### 8.1 Phase 2 機能
-- 複数モデルの切り替え機能
-- 会話履歴の永続化
-- プラグイン機能
-
-### 8.2 Phase 3 機能
-- 音声入出力対応
-- 画像生成・解析機能
-- カスタムファインチューニング対応
-
-## 9. 成功指標
-
-### 9.1 技術指標
-- AI PC (NPU) 使用率: 80%以上
-- 平均応答時間: 2秒以内
-- メモリ使用量: 4GB以下
-
-### 9.2 ユーザビリティ指標
-- セットアップ時間: 15分以内
-- インターフェースの直感性
-- エラー発生率: 1%以下
-
----
-
-**文書作成日**: 2025年10月2日  
-**バージョン**: 1.0  
-**作成者**: AI Assistant
+## 7. Possible Future Enhancements
+- Persist conversation history (e.g., SQLite)
+- Add optional voice input or text-to-speech
+- Support switching between multiple models

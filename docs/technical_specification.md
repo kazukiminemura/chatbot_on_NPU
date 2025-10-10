@@ -1,265 +1,112 @@
-# 技術実装仕様書
+# Chatbot on AI PC Technical Notes
 
-## 1. プロジェクト構成
-
+## 1. Repository Layout
 ```
 chatbot_on_AIPC/
-├── app/
-│   ├── __init__.py
-│   ├── main.py              # FastAPIメインアプリケーション
-│   ├── models/
-│   │   ├── __init__.py
-│   │   ├── model_manager.py # モデル管理クラス
-│   │   └── ov_inference.py  # OpenVINO推論エンジン
-│   ├── api/
-│   │   ├── __init__.py
-│   │   ├── chat.py          # チャットAPI
-│   │   └── websocket.py     # WebSocket通信
-│   ├── core/
-│   │   ├── __init__.py
-│   │   ├── config.py        # 設定管理
-│   │   └── logger.py        # ログ設定
-│   ├── utils/
-│       ├── __init__.py
-│       ├── model_converter.py # HuggingFace→OpenVINO変換
-│       └── download.py       # モデルダウンロード
-├── static/
-│   ├── css/
-│   │   └── style.css
-│   ├── js/
-│   │   └── chat.js
-│   └── index.html
-├── models/                   # モデル保存ディレクトリ
-├── logs/                     # ログファイル
-├── config.json              # 設定ファイル
-├── requirements.txt         # Python依存関係
-├── setup.py                 # セットアップスクリプト
-├── run.py                   # アプリケーション起動スクリプト
-└── README.md               # セットアップ・使用方法
+|-- app/
+|   |-- main.py            # FastAPI entry point
+|   |-- api/chat.py        # REST endpoints
+|   |-- models/model_manager.py
+|   |-- models/ov_inference.py
+|   `-- utils/             # download and conversion helpers
+|-- static/                # index.html, chat.js, style.css
+|-- models/                # OpenVINO IR files live here
+|-- config.json            # runtime settings
+|-- run.py                 # convenience launcher
+`-- requirements.txt       # Python dependencies
 ```
 
-## 2. 技術コンポーネント詳細
+## 2. Startup Flow
+1. `run.py` loads `config.json`, resolves the target device (NPU > GPU > CPU), and starts Uvicorn.
+2. `app/main.py` creates the FastAPI app, mounts static files, and registers the chat routes.
+3. `model_manager.py` checks for model files in `models/`; if absent it raises an informative error for the user.
+4. `ov_inference.py` loads the OpenVINO model, keeps it in memory, and exposes a `generate` helper that returns a single string response.
 
-### 2.1 バックエンド (FastAPI)
+## 3. Backend Components
+- **main.py**: builds the FastAPI application, sets up CORS, serves `static/index.html`, and wires the REST router.
+- **api/chat.py**: exposes `POST /api/chat` and `GET /health`. The chat endpoint validates the request, calls the inference helper, and returns the final text plus timing info.
+- **models/model_manager.py**: handles model path resolution, basic caching, and exposes a singleton-like accessor so the model loads only once.
+- **models/ov_inference.py**: wraps OpenVINO Runtime. It prepares the compiled model, runs generation with max tokens, temperature, top-p, and repetition penalty values taken from the config.
+- **utils/download.py** (optional use): helper functions to fetch model artifacts from Hugging Face when needed.
 
-#### メインアプリケーション (main.py)
-- FastAPIアプリケーションの初期化
-- 静的ファイル配信設定
-- CORS設定
-- WebSocketエンドポイント設定
-- `http://localhost:8000/` でフロントエンドを提供するローカルサーバーの起動
+## 4. Frontend Components
+- **static/index.html**: minimal chat page with an input box, send button, and message list.
+- **static/chat.js**: submits prompts via `fetch` to `/api/chat`, appends the response, and maintains session memory in the browser only.
+- **static/style.css**: light styling for desktop use; responsive tweaks keep the layout usable on smaller screens.
 
-#### モデル管理 (model_manager.py)
-- モデルダウンロード管理
-- HuggingFace→OpenVINO変換処理
-- AI PC (NPU) デバイス検出・設定
-- モデルキャッシュ管理
-- 初回起動時にOpenVINO/DeepSeek-R1-Distill-Qwen-1.5B-int4-cw-ovを自動ダウンロードし`models/`に保存
-
-#### OpenVINO推論エンジン (ov_inference.py)
-- OpenVINOランタイム初期化
-- AI PC (NPU) コンパイル設定
-- トークン生成処理
-- ストリーミング応答生成
-
-### 2.2 フロントエンド
-
-#### HTML (index.html)
-- チャットインターフェース
-- レスポンシブデザイン
-- システム情報表示エリア
-
-#### JavaScript (chat.js)
-- WebSocket通信管理
-- リアルタイムメッセージ表示
-- ユーザー入力処理
-- ストリーミング応答表示
-
-#### CSS (style.css)
-- モダンなチャットUI
-- ダークモード対応
-- アニメーション効果
-
-### 2.3 AI PC (NPU) 最適化設定
-
-#### OpenVINOコンパイル設定
-```python
-compile_config = {
-    "NPU_USE_NPUW": "YES",
-    "NPU_COMPILATION_MODE_PARAMS": "compute-layers-with-higher-precision=Softmax,Add",
-    "INFERENCE_PRECISION_HINT": "f16"
-}
-```
-
-#### モデル量子化
-- INT4量子化によるパフォーマンス向上
-- AI PC (NPU) 専用最適化パイプライン
-
-## 3. API仕様
-
-### 3.1 REST API
-
-#### GET /health
-システムヘルスチェック
+## 5. API Contract
+### 5.1 `GET /health`
+Returns application status and device information.
 ```json
 {
-  "status": "healthy",
+  "status": "ok",
   "model_loaded": true,
-  "aipc_npu_available": true,
-  "memory_usage": "2.1GB"
+  "device": "NPU"
 }
 ```
 
-#### POST /api/chat
-単発チャット（非ストリーミング）
+### 5.2 `POST /api/chat`
+Accepts a single prompt and returns the completed answer (no token streaming).
 ```json
 // Request
 {
-  "message": "こんにちは",
-  "max_tokens": 500,
-  "temperature": 0.7
+  "message": "Hello!",
+  "max_tokens": 512,
+  "temperature": 0.7,
+  "top_p": 0.9
 }
 
 // Response
 {
-  "response": "こんにちは！何かお手伝いできることはありますか？",
-  "inference_time": 1.23,
-  "tokens_generated": 15
+  "response": "Hi there, how can I help you?",
+  "inference_time": 2.14,
+  "tokens_generated": 120
 }
 ```
+Validation keeps the payload small (e.g., prompt length, positive numeric settings) and falls back to defaults when optional fields are omitted.
 
-### 3.2 WebSocket API
-
-#### /ws/chat
-リアルタイムチャット
-```json
-// Send
-{
-  "type": "message",
-  "data": {
-    "message": "質問内容",
-    "settings": {
-      "max_tokens": 500,
-      "temperature": 0.7
-    }
-  }
-}
-
-// Receive (ストリーミング)
-{
-  "type": "token",
-  "data": {
-    "token": "こんにちは",
-    "is_final": false
-  }
-}
-
-// Receive (完了)
-{
-  "type": "complete",
-  "data": {
-    "inference_time": 2.45,
-    "total_tokens": 47
-  }
-}
-```
-
-## 4. セットアップ手順
-
-### 4.1 環境要件
-- Windows 10/11
-- Python 3.9以上
-- Intel AI PC（NPU搭載デバイス）
-- 6GB以上のRAM
-- 8GB以上の空きストレージ
-
-### 4.2 インストール手順
-1. リポジトリクローン
-2. 仮想環境作成
-3. 依存関係インストール
-4. サーバー起動: `python run.py`（初回実行時にOpenVINO/DeepSeek-R1-Distill-Qwen-1.5B-int4-cw-ovが自動ダウンロード・変換される）
-5. ブラウザで `http://localhost:8000/` にアクセス
-
-### 4.3 設定ファイル (config.json)
+## 6. Configuration
+`config.json` drives model metadata and inference defaults.
 ```json
 {
   "model": {
     "name": "OpenVINO/DeepSeek-R1-Distill-Qwen-1.5B-int4-cw-ov",
-    "repo_id": "OpenVINO/DeepSeek-R1-Distill-Qwen-1.5B-int4-cw-ov",
-    "model_type": "deepseek-r1-qwen",
+    "local_dir": "models",
     "max_context_length": 8192
   },
   "inference": {
-    "max_tokens": 500,
+    "max_tokens": 512,
     "temperature": 0.7,
     "top_p": 0.9,
     "top_k": 50,
-    "repetition_penalty": 1.1
+    "repetition_penalty": 1.05
   },
   "server": {
-    "host": "localhost",
+    "host": "127.0.0.1",
     "port": 8000,
-    "log_level": "INFO"
+    "log_level": "info"
   },
   "hardware": {
-    "device": "AIPC_NPU",
-    "precision": "FP16",
-    "batch_size": 1
+    "preferred_device": "NPU",
+    "fallback_order": ["GPU", "CPU"],
+    "precision": "FP16"
   }
 }
 ```
+Environment variables or CLI flags can override the server host/port if desired.
 
-## 5. パフォーマンス最適化
+## 7. Model Handling
+- Place `openvino_model.bin` and `openvino_model.xml` inside `models/`.
+- Large model snapshots from Hugging Face should be downloaded once and reused.
+- Loading happens lazily on the first request; subsequent requests reuse the same compiled model.
 
-### 5.1 AI PC (NPU) 最適化
-- モデルの事前コンパイル
-- 効率的なメモリ管理
-- バッチ処理の最適化
+## 8. Dependency Highlights
+- FastAPI 0.110+
+- OpenVINO Runtime with NPU support
+- optimum-intel for model conversions (if needed)
+- transformers for tokenizer utilities
 
-### 5.2 推論最適化
-- KVキャッシュの活用
-- 動的バッチサイズ調整
-- プリフィルとデコードの分離
-
-### 5.3 通信最適化
-- WebSocketによる低遅延通信
-- ストリーミング応答
-- 効率的なJSON serialization
-
-## 6. エラーハンドリング
-
-### 6.1 モデル関連エラー
-- モデルダウンロード失敗
-- 変換エラー
-- AI PC (NPU) 利用不可
-
-### 6.2 推論エラー
-- メモリ不足
-- タイムアウト
-- 不正な入力
-
-### 6.3 通信エラー
-- WebSocket接続断
-- ネットワークエラー
-- JSON解析エラー
-
-## 7. テスト戦略
-
-### 7.1 単体テスト
-- モデル変換機能
-- 推論エンジン
-- API エンドポイント
-
-### 7.2 統合テスト
-- エンドツーエンドチャット
-- パフォーマンステスト
-- エラーシナリオテスト
-
-### 7.3 パフォーマンステスト
-- 応答時間測定
-- スループット測定
-- メモリ使用量監視
-
----
-
-この技術仕様書に基づいて、実際のコード実装を進めることができます。
+## 9. Testing Checklist
+- Unit test model loading and generation helpers (e.g., mock the runtime for quick feedback).
+- Hit `GET /health` to verify the service starts and the model is ready.
+- Send a sample prompt to `/api/chat` and confirm the response arrives as a single JSON payload.
