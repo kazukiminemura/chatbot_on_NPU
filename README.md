@@ -50,6 +50,7 @@ After the download, copy the `openvino_model.bin` and `openvino_model.xml` files
 - **Package conflicts**: Remove old packages inside the virtual environment (`pip uninstall starlette`) and retry `pip install -r requirements.txt`.
 - **Missing `huggingface_hub.errors`**: Update the hub client with `pip install --upgrade "huggingface-hub>=0.23.0"`.
 - **Model cannot be opened**: Ensure the OpenVINO model files are present in `models/` and not locked by another process.
+- **`Unexpected UTF-8 BOM` when loading `config.json`**: Save `config.json` with plain UTF-8 encoding (no BOM). In PowerShell you can run `python -c "import pathlib; p = pathlib.Path('config.json'); p.write_text(p.read_text(encoding='utf-8-sig'), encoding='utf-8')"` to strip the BOM automatically.
 
 ## Project Layout
 ```

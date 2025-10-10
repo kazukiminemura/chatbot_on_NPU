@@ -95,6 +95,8 @@ Validation keeps the payload small (e.g., prompt length, positive numeric settin
 ```
 Environment variables or CLI flags can override the server host/port if desired.
 
+> Encoding note: keep `config.json` saved as UTF-8 without a byte order mark. Editors such as VS Code allow choosing `UTF-8` (not `UTF-8 with BOM`). If the file already contains a BOM, run `python -c "import pathlib; p = pathlib.Path('config.json'); p.write_text(p.read_text(encoding='utf-8-sig'), encoding='utf-8')"` to normalize it.
+
 ## 7. Model Handling
 - Place `openvino_model.bin` and `openvino_model.xml` inside `models/`.
 - Large model snapshots from Hugging Face should be downloaded once and reused.
