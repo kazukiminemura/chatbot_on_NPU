@@ -5,7 +5,7 @@
 
 ## 🤖 プロジェクト概要
 
-Gemma-3-1B-itモデルをOpenVINOを使用してIntel AI PC（NPU搭載PC）上で実行し、ブラウザから利用可能な個人用チャットボットアプリケーションを構築するプロジェクトです。
+OpenVINO/DeepSeek-R1-Distill-Qwen-1.5B-int4-cw-ovモデルをOpenVINOを使用してIntel AI PC（NPU搭載PC）上で実行し、ブラウザから利用可能な個人用チャットボットアプリケーションを構築するプロジェクトです。
 
 ### ✨ 主な特徴
 
@@ -13,7 +13,7 @@ Gemma-3-1B-itモデルをOpenVINOを使用してIntel AI PC（NPU搭載PC）上�
 - **🌐 ブラウザベース**: Webインターフェースによる直感的な操作
 - **🔒 完全ローカル**: プライバシーを重視した完全ローカル実行
 - **⚡ リアルタイム**: WebSocketによるストリーミング応答
-- **🎯 軽量**: 1Bパラメータモデルによる効率的なリソース使用
+- **🎯 軽量**: 1.5BパラメータのINT4量子化モデルによる効率的なリソース使用
 
 ## 🏗️ AI駆動開発について
 
@@ -81,7 +81,7 @@ python run.py
 - **AI Framework**: OpenVINO Runtime
 - **Backend**: FastAPI
 - **Frontend**: HTML5/CSS3/JavaScript
-- **Model**: Gemma-3-1B-it
+- **Model**: OpenVINO/DeepSeek-R1-Distill-Qwen-1.5B-int4-cw-ov
 - **Hardware**: Intel AI PC (NPU)
 - **Communication**: WebSocket + REST API
 

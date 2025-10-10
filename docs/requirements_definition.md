@@ -3,7 +3,7 @@
 ## 1. プロジェクト概要
 
 ### 1.1 目的
-- Gemma-3-1B-itモデルをOpenVINOを使用してAI PC（NPU搭載PC）上で実行
+- OpenVINO/DeepSeek-R1-Distill-Qwen-1.5B-int4-cw-ovモデルをOpenVINOを使用してAI PC（NPU搭載PC）上で実行
 - ブラウザから利用可能な個人用チャットボットアプリケーションの構築
 - 高速推論とリアルタイム対話の実現
 
@@ -23,7 +23,7 @@
    - ローカルホスト上のフロントエンド（`http://localhost:8000/`）でアクセス提供
 
 2. **モデル管理機能**
-   - Gemma-3-1B-itモデルの自動ダウンロード
+   - OpenVINO/DeepSeek-R1-Distill-Qwen-1.5B-int4-cw-ovモデルの自動ダウンロード
    - OpenVINO形式への自動変換
    - NPUデバイスへの最適化配置
    - 初回のサーバー起動時に`python run.py`がモデルの取得と更新を自動処理
@@ -129,7 +129,7 @@
 ## 5. データ要件
 
 ### 5.1 モデルデータ
-- **モデルサイズ**: 約2GB (Gemma-3-1B-it)
+- **モデルサイズ**: 約1GB (OpenVINO/DeepSeek-R1-Distill-Qwen-1.5B-int4-cw-ov)
 - **フォーマット**: HuggingFace → OpenVINO IR変換
 - **保存場所**: ローカル`models/`ディレクトリ
 
@@ -156,7 +156,7 @@
 
 ### 6.2 初回セットアップフロー
 1. 依存関係のインストール
-2. `python run.py` 初回実行でGemma-3-1B-itモデルを自動ダウンロード
+2. `python run.py` 初回実行でOpenVINO/DeepSeek-R1-Distill-Qwen-1.5B-int4-cw-ovモデルを自動ダウンロード
 3. 同コマンドでOpenVINO形式への自動変換とキャッシュ保存
 4. AI PC (NPU) デバイスの検出・設定
    - 起動時にNPUが検出されない場合は、利用可能なGPUを確認し、GPUが利用可能ならGPUで実行する。GPUも利用不可の場合はCPUで実行する設定を行う。

@@ -54,7 +54,7 @@ chatbot_on_AIPC/
 - HuggingFace→OpenVINO変換処理
 - AI PC (NPU) デバイス検出・設定
 - モデルキャッシュ管理
-- 初回起動時にGemma-3-1B-itを自動ダウンロードし`models/`に保存
+- 初回起動時にOpenVINO/DeepSeek-R1-Distill-Qwen-1.5B-int4-cw-ovを自動ダウンロードし`models/`に保存
 
 #### OpenVINO推論エンジン (ov_inference.py)
 - OpenVINOランタイム初期化
@@ -92,7 +92,7 @@ compile_config = {
 ```
 
 #### モデル量子化
-- INT8量子化によるパフォーマンス向上
+- INT4量子化によるパフォーマンス向上
 - AI PC (NPU) 専用最適化パイプライン
 
 ## 3. API仕様
@@ -177,16 +177,16 @@ compile_config = {
 1. リポジトリクローン
 2. 仮想環境作成
 3. 依存関係インストール
-4. サーバー起動: `python run.py`（初回実行時にGemma-3-1B-itが自動ダウンロード・変換される）
+4. サーバー起動: `python run.py`（初回実行時にOpenVINO/DeepSeek-R1-Distill-Qwen-1.5B-int4-cw-ovが自動ダウンロード・変換される）
 5. ブラウザで `http://localhost:8000/` にアクセス
 
 ### 4.3 設定ファイル (config.json)
 ```json
 {
   "model": {
-    "name": "Gemma-3-1B-it",
-    "repo_id": "unsloth/gemma-3-1b-it",
-    "model_type": "gemma3",
+    "name": "OpenVINO/DeepSeek-R1-Distill-Qwen-1.5B-int4-cw-ov",
+    "repo_id": "OpenVINO/DeepSeek-R1-Distill-Qwen-1.5B-int4-cw-ov",
+    "model_type": "deepseek-r1-qwen",
     "max_context_length": 8192
   },
   "inference": {
