@@ -3,7 +3,7 @@
 ## 1. プロジェクト構成
 
 ```
-chatbot_on_NPU/
+chatbot_on_AIPC/
 ├── app/
 │   ├── __init__.py
 │   ├── main.py              # FastAPIメインアプリケーション
@@ -51,12 +51,12 @@ chatbot_on_NPU/
 #### モデル管理 (model_manager.py)
 - モデルダウンロード管理
 - HuggingFace→OpenVINO変換処理
-- NPUデバイス検出・設定
+- AI PC (NPU) デバイス検出・設定
 - モデルキャッシュ管理
 
 #### OpenVINO推論エンジン (ov_inference.py)
 - OpenVINOランタイム初期化
-- NPUコンパイル設定
+- AI PC (NPU) コンパイル設定
 - トークン生成処理
 - ストリーミング応答生成
 
@@ -78,7 +78,7 @@ chatbot_on_NPU/
 - ダークモード対応
 - アニメーション効果
 
-### 2.3 NPU最適化設定
+### 2.3 AI PC (NPU) 最適化設定
 
 #### OpenVINOコンパイル設定
 ```python
@@ -91,7 +91,7 @@ compile_config = {
 
 #### モデル量子化
 - INT8量子化によるパフォーマンス向上
-- NPU専用最適化パイプライン
+- AI PC (NPU) 専用最適化パイプライン
 
 ## 3. API仕様
 
@@ -103,7 +103,7 @@ compile_config = {
 {
   "status": "healthy",
   "model_loaded": true,
-  "npu_available": true,
+  "aipc_npu_available": true,
   "memory_usage": "2.1GB"
 }
 ```
@@ -167,7 +167,7 @@ compile_config = {
 ### 4.1 環境要件
 - Windows 10/11
 - Python 3.9以上
-- Intel NPU対応デバイス
+- Intel AI PC（NPU搭載デバイス）
 - 6GB以上のRAM
 - 8GB以上の空きストレージ
 
@@ -200,7 +200,7 @@ compile_config = {
     "log_level": "INFO"
   },
   "hardware": {
-    "device": "NPU",
+    "device": "AIPC_NPU",
     "precision": "FP16",
     "batch_size": 1
   }
@@ -209,7 +209,7 @@ compile_config = {
 
 ## 5. パフォーマンス最適化
 
-### 5.1 NPU最適化
+### 5.1 AI PC (NPU) 最適化
 - モデルの事前コンパイル
 - 効率的なメモリ管理
 - バッチ処理の最適化
@@ -229,7 +229,7 @@ compile_config = {
 ### 6.1 モデル関連エラー
 - モデルダウンロード失敗
 - 変換エラー
-- NPU利用不可
+- AI PC (NPU) 利用不可
 
 ### 6.2 推論エラー
 - メモリ不足

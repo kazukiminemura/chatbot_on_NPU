@@ -1,15 +1,15 @@
-# Gemma-3-1B-it NPU チャットボット
+# Chatbot on AI PC
 
 > **AI駆動開発サンプルプロジェクト**  
 > このリポジトリは、AI技術を活用した開発プロセスの実例を示すサンプルプロジェクトです。
 
 ## 🤖 プロジェクト概要
 
-Gemma-3-1B-itモデルをOpenVINOを使用してIntel NPU上で実行し、ブラウザから利用可能な個人用チャットボットアプリケーションを構築するプロジェクトです。
+Gemma-3-1B-itモデルをOpenVINOを使用してIntel AI PC（NPU搭載PC）上で実行し、ブラウザから利用可能な個人用チャットボットアプリケーションを構築するプロジェクトです。
 
 ### ✨ 主な特徴
 
-- **🚀 高速推論**: Intel NPUによる最適化されたAI推論
+- **🚀 高速推論**: Intel AI PC（NPU）による最適化されたAI推論
 - **🌐 ブラウザベース**: Webインターフェースによる直感的な操作
 - **🔒 完全ローカル**: プライバシーを重視した完全ローカル実行
 - **⚡ リアルタイム**: WebSocketによるストリーミング応答
@@ -37,7 +37,7 @@ Gemma-3-1B-itモデルをOpenVINOを使用してIntel NPU上で実行し、ブ�
 ## 📁 プロジェクト構造
 
 ```
-chatbot_on_NPU/
+chatbot_on_AIPC/
 ├── docs/                          # 📖 プロジェクト文書
 │   ├── requirements_definition.md # 要件定義書
 │   └── technical_specification.md # 技術仕様書
@@ -53,14 +53,14 @@ chatbot_on_NPU/
 ### 前提条件
 - Windows 10/11
 - Python 3.9以上
-- Intel NPU対応デバイス
+- Intel AI PC（NPU搭載デバイス）
 - 8GB以上のRAM
 
 ### インストール
 ```bash
 # リポジトリのクローン
-git clone https://github.com/kazukiminemura/chatbot_on_NPU.git
-cd chatbot_on_NPU
+git clone https://github.com/kazukiminemura/chatbot_on_AIPC.git
+cd chatbot_on_AIPC
 
 # 仮想環境の作成
 python -m venv venv
@@ -82,7 +82,7 @@ python run.py
 - **Backend**: FastAPI
 - **Frontend**: HTML5/CSS3/JavaScript
 - **Model**: Gemma-3-1B-it
-- **Hardware**: Intel NPU
+- **Hardware**: Intel AI PC (NPU)
 - **Communication**: WebSocket + REST API
 
 ## 📊 パフォーマンス目標
@@ -90,7 +90,7 @@ python run.py
 - **応答時間**: 平均2秒以内
 - **生成速度**: 秒間50トークン以上
 - **メモリ使用量**: 4GB以下
-- **NPU使用率**: 80%以上
+- **AI PC (NPU) 使用率**: 80%以上
 
 ## 🤝 AI駆動開発の成果
 
