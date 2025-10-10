@@ -47,12 +47,14 @@ chatbot_on_AIPC/
 - 静的ファイル配信設定
 - CORS設定
 - WebSocketエンドポイント設定
+- `http://localhost:8000/` でフロントエンドを提供するローカルサーバーの起動
 
 #### モデル管理 (model_manager.py)
 - モデルダウンロード管理
 - HuggingFace→OpenVINO変換処理
 - AI PC (NPU) デバイス検出・設定
 - モデルキャッシュ管理
+- 初回起動時にGemma-3-1B-itを自動ダウンロードし`models/`に保存
 
 #### OpenVINO推論エンジン (ov_inference.py)
 - OpenVINOランタイム初期化
@@ -175,8 +177,8 @@ compile_config = {
 1. リポジトリクローン
 2. 仮想環境作成
 3. 依存関係インストール
-4. 初回セットアップ実行
-5. サーバー起動: `python run.py`
+4. サーバー起動: `python run.py`（初回実行時にGemma-3-1B-itが自動ダウンロード・変換される）
+5. ブラウザで `http://localhost:8000/` にアクセス
 
 ### 4.3 設定ファイル (config.json)
 ```json
