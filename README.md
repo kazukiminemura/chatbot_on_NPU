@@ -1,120 +1,109 @@
 # Chatbot on AI PC
 
-> **AI駆動開発サンプルプロジェクト**  
-> このリポジトリは、AI技術を活用した開発プロセスの実例を示すサンプルプロジェクトです。
+Intel AI PC (NPU) 上で OpenVINO を利用し、DeepSeek-R1-Distill-Qwen-1.5B-int4-cw-ov モデルを動作させる個人向けチャットボットのサンプルです。完全ローカルでの推論、Web UI からの利用、WebSocket ストリーミング応答を想定しています。
 
-## 🤖 プロジェクト概要
+## プロジェクト概要
 
-OpenVINO/DeepSeek-R1-Distill-Qwen-1.5B-int4-cw-ovモデルをOpenVINOを使用してIntel AI PC（NPU搭載PC）上で実行し、ブラウザから利用可能な個人用チャットボットアプリケーションを構築するプロジェクトです。
-
-### ✨ 主な特徴
-
-- **🚀 高速推論**: Intel AI PC（NPU）による最適化されたAI推論
-- **🌐 ブラウザベース**: Webインターフェースによる直感的な操作
-- **🔒 完全ローカル**: プライバシーを重視した完全ローカル実行
-- **⚡ リアルタイム**: WebSocketによるストリーミング応答
-- **🎯 軽量**: 1.5BパラメータのINT4量子化モデルによる効率的なリソース使用
-
-## 🏗️ AI駆動開発について
-
-このプロジェクトは、以下のAI駆動開発手法を実践しています：
-
-### 📋 要件定義フェーズ
-- AIアシスタントによる包括的な要件分析
-- ユーザーニーズの構造化と明文化
-- 技術制約の特定と解決策の提案
-
-### 🔧 設計・実装フェーズ
-- アーキテクチャ設計のAI支援
-- コード生成とベストプラクティスの適用
-- リアルタイムな問題解決とコード最適化
-
-### 📚 ドキュメント生成
-- 自動的な技術仕様書作成
-- API文書の生成
-- ユーザーガイドの作成
-
-## 📁 プロジェクト構造
+- **高速推論**: Intel AI PC の NPU 向けに最適化された OpenVINO モデルを使用
+- **ブラウザ操作**: FastAPI + WebSocket によるリアルタイム応答
+- **完全ローカル**: すべての処理をローカルマシン内で完結
 
 ```
 chatbot_on_AIPC/
-├── docs/                          # 📖 プロジェクト文書
+├── docs/                          # プロジェクト文書
 │   ├── requirements_definition.md # 要件定義書
 │   └── technical_specification.md # 技術仕様書
-├── app/                           # 🚀 アプリケーションコード
-├── static/                        # 🌐 Webフロントエンド
-├── models/                        # 🧠 AIモデル保存場所
-├── config.json                    # ⚙️ 設定ファイル
-└── requirements.txt               # 📦 Python依存関係
+├── app/                           # アプリケーションコード
+├── static/                        # Web フロントエンド
+├── models/                        # 推論用 OpenVINO モデル
+├── config.json                    # 設定ファイル
+└── requirements.txt               # Python 依存関係
 ```
 
-## 🚀 クイックスタート
+## 推奨環境
 
-### 前提条件
-- Windows 10/11
-- Python 3.9以上
-- Intel AI PC（NPU搭載デバイス）
-- 8GB以上のRAM
+- Windows 10 / 11
+- Python 3.9 以上 (3.12 までを推奨)
+- Intel AI PC (NPU 搭載)
+- RAM 8 GB 以上
 
-### インストール
-```bash
-# リポジトリのクローン
-git clone https://github.com/kazukiminemura/chatbot_on_AIPC.git
-cd chatbot_on_AIPC
+## セットアップ手順
 
-# 仮想環境の作成
-python -m venv venv
-venv\Scripts\activate
+1. リポジトリを取得します。
+   ```powershell
+   git clone https://github.com/kazukiminemura/chatbot_on_AIPC.git
+   cd chatbot_on_AIPC
+   ```
+2. 仮想環境を作成し、必ずクリーンな状態から開始します。
+   ```powershell
+   python -m venv .venv
+   .\.venv\Scripts\Activate
+   python -m pip install --upgrade pip wheel
+   ```
+3. 依存関係をインストールします。既存環境からの混入を避けるため、上記のクリーンな仮想環境内で実行してください。
+   ```powershell
+   pip install -r requirements.txt
+   ```
+4. アプリケーションを起動します。
+   ```powershell
+   python run.py
+   ```
+5. ブラウザで `http://localhost:8000` にアクセスするとチャットボット UI が表示されます。
 
-# 依存関係のインストール
-pip install -r requirements.txt
+## 依存関係インストール時の注意点
 
-# アプリケーションの起動
-python run.py
-```
+- `starlette` のバージョン競合が発生した場合  
+  FastAPI 0.110 以降は `starlette>=0.37.2,<0.38.0` を要求します。既に `starlette==0.36.3` が入っている環境で `pip install -r requirements.txt` を実行すると次のエラーになります。
+  ```
+  ERROR: Cannot install -r requirements.txt (line 1) and starlette==0.36.3 because these package versions have conflicting dependencies.
+  ```
+  **対策**
+  - 仮想環境を作り直す、または
+  - `pip uninstall starlette` を実行してから再度 `pip install -r requirements.txt` を行う、もしくは
+  - 明示的に互換バージョンをインストールする: `pip install "starlette>=0.37.2,<0.38.0"`
 
-### アクセス
-ブラウザで `http://localhost:8000` にアクセスしてチャットボットを利用できます。
+- `huggingface_hub.errors` が見つからない場合  
+  `optimum` から `huggingface_hub.errors.OfflineModeIsEnabled` を参照します。旧バージョンの `huggingface-hub` だと同モジュールが存在しないため、以下で最新版へ更新してください。
+  ```powershell
+  pip install --upgrade "huggingface-hub>=0.23.0"
+  ```
 
-## 🛠️ 技術スタック
+## モデルの配置
 
-- **AI Framework**: OpenVINO Runtime
-- **Backend**: FastAPI
-- **Frontend**: HTML5/CSS3/JavaScript
-- **Model**: OpenVINO/DeepSeek-R1-Distill-Qwen-1.5B-int4-cw-ov
-- **Hardware**: Intel AI PC (NPU)
-- **Communication**: WebSocket + REST API
+アプリケーション起動時には OpenVINO 形式のモデルファイル `openvino_model.bin` と `openvino_model.xml` が `models/` 配下に存在する必要があります。
 
-## 📊 パフォーマンス目標
+### 推奨ダウンロード手順
 
-- **応答時間**: 平均2秒以内
-- **生成速度**: 秒間50トークン以上
-- **メモリ使用量**: 4GB以下
-- **AI PC (NPU) 使用率**: 80%以上
+1. Hugging Face CLI をインストール (未導入の場合)
+   ```powershell
+   pip install "huggingface_hub[cli]"
+   ```
+2. モデルをローカルにダウンロードし、既定のパスへ展開します。
+   ```powershell
+   huggingface-cli download \
+     OpenVINO/DeepSeek-R1-Distill-Qwen-1.5B-int4-cw-ov \
+     --local-dir models/models--OpenVINO--DeepSeek-R1-Distill-Qwen-1.5B-int4-cw-ov
+   ```
+3. `models/models--OpenVINO--DeepSeek-R1-Distill-Qwen-1.5B-int4-cw-ov/snapshots/<commit-id>/openvino_model.bin` が存在することを確認してください。ファイルが見つからない場合はダウンロードに失敗した可能性があるため、再実行してください。
 
-## 🤝 AI駆動開発の成果
+> **NOTE**  
+> Windows でパスが長くなる場合は `git config --system core.longpaths true` を設定するか、短いディレクトリ名にクローンしてからダウンロードすると解消できます。
 
-このプロジェクトでは、以下の開発プロセスにAIを活用しています：
+## よくあるエラーと対処
 
-- **📝 要件定義**: 自然言語での要求からの構造化された仕様作成
-- **🏗️ アーキテクチャ設計**: 最適な技術選択とシステム設計
-- **💻 コード実装**: ベストプラクティスに従った高品質なコード生成
-- **📚 ドキュメント作成**: 包括的で理解しやすい技術文書の自動生成
-- **🔍 コードレビュー**: 継続的な品質改善とバグ検出
+| エラー | 原因 | 解決方法 |
+| --- | --- | --- |
+| `Cannot install -r requirements.txt (line 1) and starlette==0.36.3...` | 既存環境に古い `starlette` が残っている | 新しい仮想環境を作る / `pip uninstall starlette` 後に再インストール / `pip install "starlette>=0.37.2,<0.38.0"` |
+| `ModuleNotFoundError: No module named 'huggingface_hub.errors'` | `huggingface-hub` が旧バージョン | `pip install --upgrade "huggingface-hub>=0.23.0"` を実行 |
+| `Can not open file ... openvino_model.bin for mapping` | OpenVINO モデルファイルが未配置または破損 | 上記「モデルの配置」の手順で再ダウンロード。パスが正しいか、アクセス権限があるかも確認 |
 
-## 📖 ドキュメント
+問題が解決しない場合は、エラーログとともに Issue を作成してください。
 
-- [要件定義書](docs/requirements_definition.md)
-- [技術仕様書](docs/technical_specification.md)
+## ドキュメント
 
-## 📄 ライセンス
-
-このプロジェクトはMITライセンスの下で公開されています。
-
-## 🌟 謝辞
-
-このプロジェクトは、AI駆動開発の可能性を探求し、従来の開発プロセスとAI技術の融合による効率的な開発手法の実現を目指しています。
+- `docs/requirements_definition.md`
+- `docs/technical_specification.md`
 
 ---
 
-**AI駆動開発サンプルプロジェクト** | Made with 🤖 AI Assistance
+Made with 🤖 AI assistance
