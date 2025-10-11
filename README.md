@@ -29,27 +29,30 @@ This repository provides a small local chatbot that runs the DeepSeek-R1-Distill
    ```powershell
    pip install -r requirements.txt
    ```
-4. Start the application:
+4. (First run only) Download the OpenVINO model snapshot with the Hugging Face CLI:
+   ```powershell
+   pip install "huggingface_hub[cli]"
+   huggingface-cli download OpenVINO/DeepSeek-R1-Distill-Qwen-1.5B-int4-cw-ov --local-dir model
+   ```
+5. Start the application:
    ```powershell
    python run.py
    ```
-5. Open `http://localhost:8000` in your browser to start chatting.
+6. Open `http://localhost:8000` in your browser to start chatting.
 
 ## Model Files
-When the server runs for the first time it expects the OpenVINO model files (`openvino_model.bin` and `openvino_model.xml`) under the `models/` directory. If they are missing, download them manually with Hugging Face CLI:
+When you run the server for the first time, download the OpenVINO model files (`openvino_model.bin` and `openvino_model.xml`) into the local `model/` directory using:
 ```powershell
-pip install "huggingface_hub[cli]"
-huggingface-cli download OpenVINO/DeepSeek-R1-Distill-Qwen-1.5B-int4-cw-ov ^
-  --local-dir models/models--OpenVINO--DeepSeek-R1-Distill-Qwen-1.5B-int4-cw-ov
+huggingface-cli download OpenVINO/DeepSeek-R1-Distill-Qwen-1.5B-int4-cw-ov --local-dir model
 ```
-After the download, copy the `openvino_model.bin` and `openvino_model.xml` files from the snapshot folder into `models/`.
+Once the download finishes, the application will load the model directly from `model/`.
 
 > Windows Note: If you see errors about long paths, run `git config --system core.longpaths true` or clone the repository into a shorter directory name.
 
 ## Troubleshooting
 - **Package conflicts**: Remove old packages inside the virtual environment (`pip uninstall starlette`) and retry `pip install -r requirements.txt`.
 - **Missing `huggingface_hub.errors`**: Update the hub client with `pip install --upgrade "huggingface-hub>=0.23.0"`.
-- **Model cannot be opened**: Ensure the OpenVINO model files are present in `models/` and not locked by another process.
+- **Model cannot be opened**: Ensure the OpenVINO model files are present in `model/` and not locked by another process.
 - **`Unexpected UTF-8 BOM` when loading `config.json`**: Save `config.json` with plain UTF-8 encoding (no BOM). In PowerShell you can run `python -c "import pathlib; p = pathlib.Path('config.json'); p.write_text(p.read_text(encoding='utf-8-sig'), encoding='utf-8')"` to strip the BOM automatically.
 
 ## Project Layout
@@ -57,7 +60,7 @@ After the download, copy the `openvino_model.bin` and `openvino_model.xml` files
 chatbot_on_AIPC/
 |-- app/                # FastAPI backend and model helpers
 |-- static/             # HTML, CSS, JavaScript for the web client
-|-- models/             # Place OpenVINO model files here
+|-- model/              # Hugging Face snapshot with the OpenVINO model files
 |-- docs/               # Simplified documentation
 |-- config.json         # Runtime configuration
 `-- requirements.txt    # Python dependencies
